@@ -1,6 +1,25 @@
 <?php
+
 if (is_logged_in()) {
-    redirect_to('index.php?page=home');
+
+    switch ($_SESSION['user_role']) {
+
+        case 'admin':
+            redirect_to('index.php?page=admin_dashboard');
+            break;
+
+        case 'moderator':
+            redirect_to('index.php?page=moderator_dashboard');
+            break;
+
+        case 'seller':
+            redirect_to('index.php?page=seller_dashboard');
+            break;
+
+        default:
+            redirect_to('index.php?page=buyer_dashboard');
+            break;
+    }
 }
 
 $error = '';
@@ -15,16 +34,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($email === '' || $password === '') {
 
-        $error = 'Please enter your email and password.';
+        $error = 'Please enter email and password.';
 
     } else {
 
-        $stmt = $conn->prepare('
+        $stmt = $conn->prepare("
             SELECT id, name, password_hash, role, seller_verified, is_active
             FROM users
             WHERE email = ?
             LIMIT 1
-        ');
+        ");
 
         $stmt->bind_param('s', $email);
         $stmt->execute();
@@ -40,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } elseif (!$user['is_active']) {
 
-            $error = 'Your account has been deactivated.';
+            $error = 'Account has been deactivated.';
 
         } else {
 
@@ -80,16 +99,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Login - AuctionHub</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
 
@@ -101,76 +118,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 body{
     font-family:'Poppins',sans-serif;
-    background:#f5f5f5;
+    background:#f3f4f6;
 }
 
 .page{
+    min-height:100vh;
     display:grid;
     grid-template-columns:1fr 1fr;
-    min-height:100vh;
 }
 
-/* LEFT */
+/* LEFT SIDE */
 
-.panel-left{
-    background:#0f1b35;
+.left{
+    background:#0f172a;
+    color:white;
+
     display:flex;
-    justify-content:center;
     align-items:center;
-    padding:40px;
+    justify-content:center;
+
+    padding:60px;
 }
 
 .left-content{
-    color:white;
-    max-width:350px;
+    max-width:420px;
 }
 
-.brand{
-    font-size:32px;
-    font-weight:600;
-    margin-bottom:20px;
-    color:#d4a84b;
-}
+.logo{
+    font-size:38px;
+    font-weight:700;
+    color:#facc15;
 
-.left-content h1{
-    font-size:42px;
-    line-height:1.3;
     margin-bottom:20px;
 }
 
-.left-content p{
-    color:rgba(255,255,255,0.7);
-    line-height:1.7;
+.left h1{
+    font-size:52px;
+    line-height:1.2;
+
+    margin-bottom:20px;
 }
 
-/* RIGHT */
+.left p{
+    color:#cbd5e1;
+    line-height:1.8;
+    font-size:15px;
+}
 
-.panel-right{
+/* RIGHT SIDE */
+
+.right{
     background:white;
+
     display:flex;
-    justify-content:center;
     align-items:center;
+    justify-content:center;
+
     padding:40px;
 }
 
 .form-box{
     width:100%;
-    max-width:380px;
+    max-width:420px;
 }
 
-.form-title{
-    font-size:34px;
-    color:#0f1b35;
+.form-box h2{
+    font-size:40px;
+    color:#111827;
+
     margin-bottom:10px;
 }
 
-.form-sub{
+.form-box p{
     color:#666;
     margin-bottom:30px;
 }
 
-.form-sub a{
-    color:#0f1b35;
+.form-box p a{
+    color:#2563eb;
     text-decoration:none;
     font-weight:600;
 }
@@ -178,26 +203,32 @@ body{
 /* ERROR */
 
 .error{
-    background:#ffe5e5;
-    color:#c0392b;
-    padding:12px;
-    border-radius:8px;
+    background:#fee2e2;
+    color:#dc2626;
+
+    padding:14px;
+    border-radius:10px;
+
     margin-bottom:20px;
+
     font-size:14px;
 }
 
 /* FIELD */
 
 .field{
-    margin-bottom:20px;
+    margin-bottom:22px;
 }
 
 .field label{
     display:block;
+
     margin-bottom:8px;
+
     font-size:14px;
     font-weight:600;
-    color:#0f1b35;
+
+    color:#111827;
 }
 
 .input-wrap{
@@ -206,64 +237,93 @@ body{
 
 .input-wrap input{
     width:100%;
-    padding:12px;
-    border:1px solid #ccc;
-    border-radius:8px;
-    font-size:14px;
+
+    padding:15px 52px 15px 16px;
+
+    border:1.5px solid #dcdcdc;
+    border-radius:12px;
+
+    font-size:16px;
+
     outline:none;
+
+    transition:0.2s;
 }
 
 .input-wrap input:focus{
-    border-color:#0f1b35;
-}
-
-.has-icon{
-    padding-right:45px !important;
+    border-color:#2563eb;
 }
 
 /* EYE BUTTON */
 
 .eye-btn{
     position:absolute;
-    right:12px;
+
+    right:16px;
     top:50%;
+
     transform:translateY(-50%);
+
+    width:22px;
+    height:22px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
     background:none;
     border:none;
+
     cursor:pointer;
+
     color:#666;
+
+    padding:0;
+}
+
+.eye-btn svg{
+    width:20px;
+    height:20px;
+    display:block;
 }
 
 /* BUTTON */
 
-.btn-submit{
+.btn{
     width:100%;
-    padding:13px;
+
+    padding:15px;
+
     border:none;
-    border-radius:8px;
-    background:#0f1b35;
+    border-radius:12px;
+
+    background:#2563eb;
     color:white;
-    font-size:15px;
+
+    font-size:16px;
     font-weight:600;
+
     cursor:pointer;
+
     transition:0.2s;
 }
 
-.btn-submit:hover{
-    background:#1a2d52;
+.btn:hover{
+    background:#1d4ed8;
 }
 
 /* MOBILE */
 
-@media(max-width:800px){
+@media(max-width:900px){
 
     .page{
         grid-template-columns:1fr;
     }
 
-    .panel-left{
+    .left{
         display:none;
     }
+
 }
 
 </style>
@@ -276,21 +336,23 @@ body{
 
     <!-- LEFT -->
 
-    <div class="panel-left">
+    <div class="left">
 
         <div class="left-content">
 
-            <div class="brand">
+            <div class="logo">
                 AuctionHub
             </div>
 
             <h1>
-                Welcome Back
+                Online<br>
+                Auction<br>
+                Platform
             </h1>
 
             <p>
-                Sign in to continue bidding,
-                selling and managing your auctions.
+                Buy and sell products through live bidding.
+                Secure and modern auction experience for buyers and sellers.
             </p>
 
         </div>
@@ -299,15 +361,13 @@ body{
 
     <!-- RIGHT -->
 
-    <div class="panel-right">
+    <div class="right">
 
         <div class="form-box">
 
-            <h2 class="form-title">
-                Sign In
-            </h2>
+            <h2>Sign In</h2>
 
-            <p class="form-sub">
+            <p>
                 Don't have an account?
                 <a href="<?= e(base_url('index.php?page=register')) ?>">
                     Register
@@ -322,11 +382,13 @@ body{
 
             <?php endif; ?>
 
-            <form method="POST" action="<?= e(base_url('index.php?page=login')) ?>">
+            <form method="POST">
+
+                <!-- EMAIL -->
 
                 <div class="field">
 
-                    <label>Email Address</label>
+                    <label>Email</label>
 
                     <div class="input-wrap">
 
@@ -342,6 +404,8 @@ body{
 
                 </div>
 
+                <!-- PASSWORD -->
+
                 <div class="field">
 
                     <label>Password</label>
@@ -350,20 +414,19 @@ body{
 
                         <input
                             type="password"
-                            name="password"
                             id="password"
+                            name="password"
                             placeholder="Enter your password"
-                            class="has-icon"
                             required
                         >
 
                         <button
                             type="button"
                             class="eye-btn"
-                            onclick="togglePassword()"
+                            id="eyeBtn"
                         >
 
-                            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                            <svg viewBox="0 0 20 20" fill="none">
 
                                 <path
                                     d="M1 10s3.5-7 9-7 9 7 9 7-3.5 7-9 7-9-7-9-7Z"
@@ -387,8 +450,8 @@ body{
 
                 </div>
 
-                <button type="submit" class="btn-submit">
-                    Sign In
+                <button type="submit" class="btn">
+                    Login
                 </button>
 
             </form>
@@ -401,22 +464,24 @@ body{
 
 <script>
 
-function togglePassword(){
+const pwInp = document.getElementById('password');
+const eyeBtn = document.getElementById('eyeBtn');
 
-    let password = document.getElementById('password');
+eyeBtn.addEventListener('click', () => {
 
-    if(password.type === 'password'){
+    if(pwInp.type === 'password'){
 
-        password.type = 'text';
+        pwInp.type = 'text';
 
     }else{
 
-        password.type = 'password';
+        pwInp.type = 'password';
+
     }
-}
+
+});
 
 </script>
 
 </body>
-
 </html>
