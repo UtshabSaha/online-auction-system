@@ -1,0 +1,1 @@
+<h1>Spending History</h1><div class="grid"><div class="card"><div class="stat"><?= e($stats['total_bids'] ?? 0) ?></div><p>Total bids placed</p></div><div class="card"><div class="stat"><?= e($stats['wins'] ?? 0) ?></div><p>Total wins</p></div><div class="card"><div class="stat"><?= e($stats['total_spent'] ?? 0) ?></div><p>Total spent</p></div></div>

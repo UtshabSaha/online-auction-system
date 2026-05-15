@@ -1,0 +1,1 @@
+<div class="card"><h1>User Trust Score</h1><table><tr><th>User</th><th>Role</th><th>Reputation</th><th>Warnings</th><th>Reports</th></tr><?php foreach($rows as $r): ?><tr><td><?= e($r['name']) ?></td><td><?= e($r['role']) ?></td><td><?= e($r['reputation_score']) ?></td><td><?= e($r['warnings']) ?></td><td><?= e($r['reports']) ?></td></tr><?php endforeach; ?></table></div>

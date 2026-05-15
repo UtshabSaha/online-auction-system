@@ -1,0 +1,1 @@
+<div class="card"><h1>Financial Reports</h1><table><tr><th>Day</th><th>Commission</th><th>Gross Auction Value</th></tr><?php foreach($rows as $r): ?><tr><td><?= e($r['day']) ?></td><td><?= e($r['commission']) ?></td><td><?= e($r['gross']) ?></td></tr><?php endforeach; ?></table></div>
