@@ -25,21 +25,74 @@ class AuthController extends BaseController {
     }
     public function register() {
         $error = '';
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $name = trim($_POST['name'] ?? ''); $email = trim($_POST['email'] ?? ''); $phone = trim($_POST['phone'] ?? ''); $bio = trim($_POST['bio'] ?? ''); $password = $_POST['password'] ?? '';
-            $errors = [];
-            if ($name === '') $errors[] = 'Name is required';
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Valid email is required';
-            if (strlen($password) < 6) $errors[] = 'Password must be at least 6 characters';
-            if ($phone === '') $errors[] = 'Phone is required';
-            $userModel = new User($this->conn);
-            if ($userModel->findByEmail($email)) $errors[] = 'Email already exists';
-            if (!$errors) {
-                $userModel->create($name,$email,password_hash($password,PASSWORD_DEFAULT),$phone,$bio);
-                redirect_to('index.php?page=login');
-            }
-            $error = $this->errors($errors);
+        
+     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    // PROFILE UPDATE
+
+    if (!isset($_POST['change_password'])) {
+
+        $name = trim($_POST['name']);
+        $phone = trim($_POST['phone']);
+        $bio = trim($_POST['bio']);
+
+        $profilePic = $user['profile_pic'];
+
+        if (!empty($_FILES['profile_pic']['name'])) {
+
+    $fileName = time() . '_' . basename($_FILES['profile_pic']['name']);
+
+    $uploadPath = __DIR__ . '/../../uploads/' . $fileName;
+
+    move_uploaded_file(
+        $_FILES['profile_pic']['tmp_name'],
+        $uploadPath
+    );
+
+    $profilePic = $fileName;
+}
+
+        $userModel->updateProfile(
+            current_user_id(),
+            $name,
+            $phone,
+            $bio,
+            $profilePic
+        );
+
+        $message = 'Profile updated successfully.';
+
+        $user = $userModel->find(current_user_id());
+    }
+
+    // PASSWORD CHANGE
+
+    if (isset($_POST['change_password'])) {
+
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if ($newPassword !== $confirmPassword) {
+
+            $message = 'New passwords and confirm passwords must be same.';
+
+        } elseif (strlen($newPassword) < 6) {
+
+            $message = 'Password must be at least 6 characters.';
+
+        } else {
+
+            $userModel->changePassword(
+                current_user_id(),
+                password_hash($newPassword, PASSWORD_DEFAULT)
+            );
+
+            $message = 'Password changed successfully.';
         }
+    }
+}
+
+
         $this->view('auth/register', compact('error'));
     }
     public function logout() { session_unset(); session_destroy(); redirect_to('index.php?page=login'); }
@@ -48,14 +101,28 @@ class AuthController extends BaseController {
         $userModel = new User($this->conn); $user = $userModel->find(current_user_id()); $message='';
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (isset($_POST['change_password'])) {
-                if (strlen($_POST['new_password'] ?? '') >= 6) { $userModel->changePassword(current_user_id(), password_hash($_POST['new_password'], PASSWORD_DEFAULT)); $message='Password changed.'; }
-                else $message='Password must be at least 6 characters.';
-            } else {
-                $pic = upload_file('profile_pic','profiles',['jpg','jpeg','png','gif']);
-                $userModel->updateProfile(current_user_id(), trim($_POST['name']), trim($_POST['phone']), trim($_POST['bio']), $pic);
-                $_SESSION['user_name'] = trim($_POST['name']);
-                $message='Profile updated.'; $user = $userModel->find(current_user_id());
-            }
+
+    $newPassword = $_POST['new_password'] ?? '';
+    $confirmPassword = $_POST['confirm_password'] ?? '';
+
+    if ($newPassword !== $confirmPassword) {
+
+        $message = 'New passwords and confirm passwords must be same.';
+
+    } elseif (strlen($newPassword) < 6) {
+
+        $message = 'Password must be at least 6 characters.';
+
+    } else {
+
+        $userModel->changePassword(
+            current_user_id(),
+            password_hash($newPassword, PASSWORD_DEFAULT)
+        );
+
+        $message = 'Password changed.';
+    }
+}
         }
         $this->view('auth/profile', compact('user','message'));
     }
