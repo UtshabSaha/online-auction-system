@@ -111,16 +111,16 @@ function buyer_auction(mysqli $conn): void {
 }
 
 function buyer_dashboard(mysqli $conn): void {
-    require_role(['buyer', 'seller', 'moderator', 'admin']);
+    require_role('buyer');
     $listings = listing_search($conn);
     $myBids = is_logged_in() ? bid_by_buyer($conn, current_user_id()) : [];
     render_view('buyer/dashboard', compact('listings', 'myBids'));
 }
 
-function buyer_watchlist(mysqli $conn): void { require_login(); $rows = watchlist_rows($conn, current_user_id()); render_view('buyer/watchlist', compact('rows')); }
-function buyer_my_bids(mysqli $conn): void { require_login(); $rows = bid_by_buyer($conn, current_user_id()); render_view('buyer/my_bids', compact('rows')); }
+function buyer_watchlist(mysqli $conn): void { require_role('buyer'); $rows = watchlist_rows($conn, current_user_id()); render_view('buyer/watchlist', compact('rows')); }
+function buyer_my_bids(mysqli $conn): void { require_role('buyer'); $rows = bid_by_buyer($conn, current_user_id()); render_view('buyer/my_bids', compact('rows')); }
 function buyer_won_auctions(mysqli $conn): void { require_login(); $rows = won_auctions($conn, current_user_id()); render_view('buyer/won', compact('rows')); }
-function buyer_spending(mysqli $conn): void { require_login(); $stats = bid_spending($conn, current_user_id()); render_view('buyer/spending', compact('stats')); }
+function buyer_spending(mysqli $conn): void { require_role('buyer'); $stats = bid_spending($conn, current_user_id()); render_view('buyer/spending', compact('stats')); }
 
 function buyer_review_seller(mysqli $conn): void {
     require_login();
