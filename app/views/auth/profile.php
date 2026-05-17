@@ -15,9 +15,21 @@
                 <?php endif; ?>
 
                 <label for="profileUpload" class="edit-avatar-btn"><i class="fas fa-pen"></i></label>
-                <input type="file" name="profile_pic" id="profileUpload" hidden>
+                <input type="file" name="profile_pic" id="profileUpload" accept="image/jpeg,image/png,image/webp" hidden>
             </div>
         </div>
+
+        <script>
+            document.getElementById('profileUpload').addEventListener('change', function () {
+                var file = this.files[0];
+                if (!file) return;
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.querySelector('.profile-avatar img').src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        </script>
 
         <label>Name</label>
         <input name="name" value="<?= e($user['name']) ?>" required>

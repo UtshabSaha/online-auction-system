@@ -87,7 +87,13 @@ function auth_profile(mysqli $conn): void {
             if ($uploaded) { $pic = $uploaded; }
 
             user_update_profile($conn, current_user_id(), trim($_POST['name'] ?? ''), trim($_POST['phone'] ?? ''), trim($_POST['bio'] ?? ''), $pic);
-            $message = 'Profile updated.';
+
+            $file_attempted = !empty($_FILES['profile_pic']['name']);
+            if ($file_attempted && !$uploaded) {
+                $message = 'Profile updated, but photo was not saved. Ensure it is JPG/PNG/WEBP and under 2MB.';
+            } else {
+                $message = 'Profile updated.';
+            }
             $user = user_find($conn, current_user_id());
         }
     }
