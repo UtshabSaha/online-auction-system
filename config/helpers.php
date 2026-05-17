@@ -23,7 +23,7 @@ function current_user_id() {
 }
 
 function current_role() {
-    return $_SESSION['user_role'] ?? 'guest';
+    return $_SESSION['role'] ?? 'guest';
 }
 
 function is_logged_in() {
@@ -55,16 +55,16 @@ function require_seller_verified() {
 
 function json_response($data) {
     header('Content-Type: application/json');
-    echo json_encode($data);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-function upload_file($field, $folder, $allowed = ['jpg','jpeg','png','gif','pdf']) {
+function upload_file($field, $folder, $allowed = ['jpg','jpeg','png','webp','pdf']) {
     if (empty($_FILES[$field]['name'])) { return null; }
     if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) { return null; }
     $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
     if (!in_array($ext, $allowed, true)) { return null; }
-    if ($_FILES[$field]['size'] > 5 * 1024 * 1024) { return null; }
+    if ($_FILES[$field]['size'] > 2 * 1024 * 1024) { return null; }
     $name = uniqid('upload_', true) . '.' . $ext;
     $relative = 'uploads/' . trim($folder, '/') . '/' . $name;
     $target = __DIR__ . '/../' . $relative;

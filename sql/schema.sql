@@ -94,7 +94,7 @@ CREATE TABLE watchlist (
 CREATE TABLE seller_verification_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    motivation TEXT NOT NULL,
+    motivation TEXT NOT NULL, 
     id_document_path VARCHAR(255) NOT NULL,
     status ENUM('pending','approved','rejected') DEFAULT 'pending',
     reviewed_by INT NULL,
