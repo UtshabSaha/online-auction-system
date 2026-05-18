@@ -12,7 +12,7 @@
         <?php foreach ($rows as $r): ?>
         <?php
             $border_color = $r['status'] === 'pending' ? '#ef4444' : ($r['status'] === 'dismissed' ? '#9ca3af' : '#16a34a');
-            $status_bg = $r['status'] === 'pending' ? '#fee2e2' : ($r['status'] === 'dismissed' ? '#f3f4f6' : '#dcfce7');
+            $status_bg    = $r['status'] === 'pending' ? '#fee2e2' : ($r['status'] === 'dismissed' ? '#f3f4f6' : '#dcfce7');
             $status_color = $r['status'] === 'pending' ? '#991b1b' : ($r['status'] === 'dismissed' ? '#374151' : '#166534');
         ?>
         <div class="card" style="border-left:4px solid <?= $border_color ?>;margin-bottom:16px;">
@@ -20,6 +20,14 @@
                 <div>
                     <strong style="font-size:15px;">Report #<?= (int)$r['id'] ?>:</strong>
                     <span style="font-size:15px;"> <?= e($r['title']) ?></span>
+                    &nbsp;
+                    <!-- ✅ FIX: Link to full listing detail so moderator can review listing content -->
+                    <a href="index.php?page=auction&id=<?= (int)$r['listing_id'] ?>"
+                       target="_blank"
+                       class="btn secondary"
+                       style="width:auto;padding:3px 10px;font-size:12px;display:inline-block;">
+                       &#128279; View Full Listing
+                    </a>
                     <div style="margin-top:4px;color:#6b7280;font-size:13px;">
                         Reporter: <strong><?= e($r['reporter_name']) ?></strong> &middot;
                         Reason: <strong><?= e($r['reason']) ?></strong> &middot;
@@ -80,8 +88,8 @@ function toggleAction(containerId, action) {
     var actionInput = document.getElementById('action-' + id);
     var label = document.getElementById('action-label-' + id);
     var labels = {
-        'dismiss': 'Dismiss Reason (optional):',
-        'suspend': 'Suspension Reason (required — listing will return to pending_review):',
+        'dismiss':     'Dismiss Reason (optional):',
+        'suspend':     'Suspension Reason (required — listing will return to pending_review):',
         'warn_seller': 'Warning Message to Seller (required):'
     };
     if (c.style.display === 'none' || actionInput.value !== action) {
