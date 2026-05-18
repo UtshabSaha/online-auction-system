@@ -1,3 +1,9 @@
+window.toggleDarkMode = window.toggleDarkMode || function(){
+    var key = 'auction_dark_mode';
+    var isDark = document.body.classList.contains('dark-mode');
+    document.body.classList.toggle('dark-mode', !isDark);
+    localStorage.setItem(key, isDark ? '0' : '1');
+};
 function qs(id){return document.getElementById(id)}
 function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
 function postAjax(url, data, callback){

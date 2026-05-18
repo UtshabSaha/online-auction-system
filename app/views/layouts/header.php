@@ -5,8 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Online Auction System</title>
-    <link rel="stylesheet" href="assets/css/style.css?v=202605181620">
+    <link rel="stylesheet" href="assets/css/style.css?v=202605181623">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script>
+        window.toggleDarkMode = window.toggleDarkMode || function(){
+            var key = 'auction_dark_mode';
+            var isDark = document.body.classList.contains('dark-mode');
+            document.body.classList.toggle('dark-mode', !isDark);
+            localStorage.setItem(key, isDark ? '0' : '1');
+        };
+    </script>
 </head>
 <body>
 <nav class="navbar">
