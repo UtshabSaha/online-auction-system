@@ -460,3 +460,94 @@ body.dark-mode .small-link a {
         padding: 26px 22px;
     }
 }
+
+/* Centered Auction Hub login card */
+.auth-landing {
+    min-height: calc(100vh - 150px);
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px 40px;
+}
+.landing-card {
+    width: min(460px, 100%);
+    padding: 34px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.14);
+}
+.landing-heading {
+    text-align: center;
+    margin-bottom: 22px;
+}
+.landing-heading .landing-kicker {
+    display: inline-flex;
+    width: auto;
+    margin: 0 auto 12px;
+    background: #e0ecff;
+    color: #1d4ed8;
+}
+.landing-heading h1 {
+    margin: 0 0 10px;
+    color: #111827;
+    font-size: 42px;
+    line-height: 1.05;
+}
+.landing-heading p {
+    margin: 0 auto;
+    max-width: 360px;
+    color: #64748b;
+    line-height: 1.55;
+}
+.landing-card .landing-highlights {
+    justify-content: center;
+    margin: 0 0 24px;
+    gap: 8px;
+}
+.landing-card .landing-highlights span {
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 12px;
+    padding: 7px 10px;
+}
+.landing-card .form-card label {
+    font-weight: 700;
+    color: #334155;
+}
+body.dark-mode .landing-card {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
+}
+body.dark-mode .landing-heading h1 {
+    color: #e2e8f0;
+}
+body.dark-mode .landing-heading p {
+    color: #94a3b8;
+}
+body.dark-mode .landing-heading .landing-kicker {
+    background: #1d3a6e;
+    color: #bfdbfe;
+}
+body.dark-mode .landing-card .landing-highlights span {
+    background: #0f172a;
+    color: #cbd5e1;
+}
+body.dark-mode .landing-card .form-card label {
+    color: #cbd5e1;
+}
+@media(max-width:520px) {
+    .auth-landing {
+        align-items: flex-start;
+        padding-top: 18px;
+    }
+    .landing-card {
+        padding: 26px 20px;
+    }
+    .landing-heading h1 {
+        font-size: 34px;
+    }
+}

@@ -1,17 +1,17 @@
 <div class="auth-panel auth-landing">
-    <div class="auth-copy">
-        <span class="landing-kicker">Timed online auctions</span>
-        <h1>Auction Hub</h1>
-        <p>Login to manage bids, listings, moderation, and admin tools from the right dashboard.</p>
+    <div class="login-card landing-card">
+        <div class="landing-heading">
+            <span class="landing-kicker">Timed online auctions</span>
+            <h1>Auction Hub</h1>
+            <p>Login to manage your bids, listings, moderation, and admin tools.</p>
+        </div>
+
         <div class="landing-highlights">
             <span>Live bidding</span>
             <span>Verified sellers</span>
             <span>Secure accounts</span>
         </div>
-    </div>
 
-    <div class="login-card">
-        <h2>Login</h2>
         <?php if (!empty($error)): ?>
             <div class="alert error"><?= e($error) ?></div>
         <?php endif; ?>
