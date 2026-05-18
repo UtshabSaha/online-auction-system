@@ -7,7 +7,7 @@ $action = $_GET['action'] ?? '';
 
 if ($action === 'search') {
     listing_close_expired_auctions($conn);
-    $rows = listing_search($conn, $_GET['q'] ?? '', $_GET['category'] ?? '', $_GET['condition'] ?? '', $_GET['min'] ?? '', $_GET['max'] ?? '');
+    $rows = listing_search($conn, $_GET['q'] ?? '', $_GET['category'] ?? '', $_GET['condition'] ?? '', $_GET['min'] ?? '', $_GET['max'] ?? '', $_GET['time'] ?? '');
     $html = '';
     foreach ($rows as $l) {
         $img = e($l['image_path'] ?: 'assets/images/no-image.png');

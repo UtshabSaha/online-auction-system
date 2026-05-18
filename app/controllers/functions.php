@@ -98,7 +98,7 @@ function auth_profile(mysqli $conn): void {
 
 function buyer_browse(mysqli $conn): void {
     listing_close_expired_auctions($conn);
-    $listings = listing_search($conn, $_GET['q'] ?? '', $_GET['category'] ?? '', $_GET['condition'] ?? '', $_GET['min'] ?? '', $_GET['max'] ?? '');
+    $listings = listing_search($conn, $_GET['q'] ?? '', $_GET['category'] ?? '', $_GET['condition'] ?? '', $_GET['min'] ?? '', $_GET['max'] ?? '', $_GET['time'] ?? '');
     $categories = listing_categories($conn);
     render_view('public/browse', compact('listings', 'categories'));
 }
@@ -111,58 +111,81 @@ function buyer_auction(mysqli $conn): void {
 }
 
 function buyer_dashboard(mysqli $conn): void {
-    require_role(['buyer', 'seller', 'moderator', 'admin']);
+    require_role('buyer');
+    listing_close_expired_auctions($conn);
     $listings = listing_search($conn);
-    $myBids = is_logged_in() ? bid_by_buyer($conn, current_user_id()) : [];
-    render_view('buyer/dashboard', compact('listings', 'myBids'));
+    $myBids = bid_by_buyer($conn, current_user_id());
+    $notifications = buyer_notifications($conn, current_user_id());
+    render_view('buyer/dashboard', compact('listings', 'myBids', 'notifications'));
 }
 
-function buyer_watchlist(mysqli $conn): void { require_login(); $rows = watchlist_rows($conn, current_user_id()); render_view('buyer/watchlist', compact('rows')); }
-function buyer_my_bids(mysqli $conn): void { require_login(); $rows = bid_by_buyer($conn, current_user_id()); render_view('buyer/my_bids', compact('rows')); }
-function buyer_won_auctions(mysqli $conn): void { require_login(); $rows = won_auctions($conn, current_user_id()); render_view('buyer/won', compact('rows')); }
-function buyer_spending(mysqli $conn): void { require_login(); $stats = bid_spending($conn, current_user_id()); render_view('buyer/spending', compact('stats')); }
+function buyer_watchlist(mysqli $conn): void { require_role('buyer'); listing_close_expired_auctions($conn); $rows = watchlist_rows($conn, current_user_id()); render_view('buyer/watchlist', compact('rows')); }
+function buyer_my_bids(mysqli $conn): void { require_role('buyer'); listing_close_expired_auctions($conn); $rows = bid_by_buyer($conn, current_user_id()); render_view('buyer/my_bids', compact('rows')); }
+function buyer_won_auctions(mysqli $conn): void { require_role('buyer'); listing_close_expired_auctions($conn); $rows = won_auctions($conn, current_user_id()); render_view('buyer/won', compact('rows')); }
+function buyer_spending(mysqli $conn): void { require_role('buyer'); listing_close_expired_auctions($conn); $stats = bid_spending($conn, current_user_id()); render_view('buyer/spending', compact('stats')); }
 
 function buyer_review_seller(mysqli $conn): void {
-    require_login();
+    require_role('buyer');
     $message = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $rating = (int)$_POST['rating'];
-        if ($rating >= 1 && $rating <= 5 && trim($_POST['review_text']) !== '') {
-            review_create($conn, (int)$_POST['listing_id'], current_user_id(), (int)$_POST['seller_id'], $rating, trim($_POST['review_text']));
-            $message = 'Review submitted.';
-        } else {
+        $rating = (int)($_POST['rating'] ?? 0);
+        $listingId = (int)($_POST['listing_id'] ?? 0);
+        $sellerId = (int)($_POST['seller_id'] ?? 0);
+        $text = trim($_POST['review_text'] ?? '');
+
+        if ($rating < 1 || $rating > 5 || $text === '') {
             $message = 'Valid rating and text required.';
+        } elseif (!buyer_can_review_listing($conn, $listingId, current_user_id(), $sellerId)) {
+            $message = 'You can review only sellers from completed auctions you won, and only once per auction.';
+        } else {
+            review_create($conn, $listingId, current_user_id(), $sellerId, $rating, $text);
+            $message = 'Review submitted.';
         }
     }
-    render_view('buyer/review_seller', compact('message'));
+    $reviewable = reviewable_won_auctions($conn, current_user_id());
+    $sentReviews = review_sent($conn, current_user_id());
+    render_view('buyer/review_seller', compact('message', 'reviewable', 'sentReviews'));
 }
 
 function buyer_report_listing(mysqli $conn): void {
-    require_login();
+    require_role('buyer');
     $message = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (trim($_POST['reason']) && strlen(trim($_POST['description'])) >= 10) {
-            report_create_listing($conn, (int)$_POST['listing_id'], current_user_id(), trim($_POST['reason']), trim($_POST['description']));
+        $listingId = (int)($_POST['listing_id'] ?? 0);
+        $listing = listing_find($conn, $listingId);
+        if (!$listing) {
+            $message = 'Listing not found.';
+        } elseif (trim($_POST['reason'] ?? '') && strlen(trim($_POST['description'] ?? '')) >= 10) {
+            report_create_listing($conn, $listingId, current_user_id(), trim($_POST['reason']), trim($_POST['description']));
             $message = 'Report submitted.';
         } else {
             $message = 'Reason and 10 character description required.';
         }
     }
-    render_view('buyer/report_listing', compact('message'));
+    $listings = buyer_reportable_listings($conn);
+    $selectedListingId = (int)($_GET['listing_id'] ?? 0);
+    render_view('buyer/report_listing', compact('message', 'listings', 'selectedListingId'));
 }
 
 function buyer_report_user(mysqli $conn): void {
-    require_login();
+    require_role('buyer');
     $message = '';
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (trim($_POST['reason']) && strlen(trim($_POST['description'])) >= 10) {
-            report_create_user($conn, current_user_id(), (int)$_POST['reported_user_id'], trim($_POST['reason']), trim($_POST['description']));
+        $reportedId = (int)($_POST['reported_user_id'] ?? 0);
+        if ($reportedId === current_user_id()) {
+            $message = 'You cannot report yourself.';
+        } elseif (!user_find($conn, $reportedId)) {
+            $message = 'User not found.';
+        } elseif (trim($_POST['reason'] ?? '') && strlen(trim($_POST['description'] ?? '')) >= 10) {
+            report_create_user($conn, current_user_id(), $reportedId, trim($_POST['reason']), trim($_POST['description']));
             $message = 'User report submitted.';
         } else {
             $message = 'Reason and 10 character description required.';
         }
     }
-    render_view('buyer/report_user', compact('message'));
+    $users = buyer_reportable_users($conn, current_user_id());
+    $selectedUserId = (int)($_GET['user_id'] ?? 0);
+    render_view('buyer/report_user', compact('message', 'users', 'selectedUserId'));
 }
 
 function listing_errors(array $p): array {

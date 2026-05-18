@@ -69,7 +69,7 @@ function listing_close_expired_auctions(mysqli $conn): void {
 }
 
 function listing_categories(mysqli $conn): array { return db_rows($conn, 'SELECT * FROM categories ORDER BY name'); }
-function listing_search(mysqli $conn, string $keyword = '', string $category = '', string $condition = '', string $min = '', string $max = ''): array {
+function listing_search(mysqli $conn, string $keyword = '', string $category = '', string $condition = '', string $min = '', string $max = '', string $time = ''): array {
     $sql = "SELECT l.*, u.name seller_name, c.name category_name, (SELECT image_path FROM listing_images WHERE listing_id=l.id ORDER BY display_order LIMIT 1) image_path FROM listings l JOIN users u ON u.id=l.seller_id JOIN categories c ON c.id=l.category_id WHERE l.status='active'";
     $types = ''; $params = [];
     if ($keyword !== '') { $sql .= ' AND (l.title LIKE ? OR l.description LIKE ?)'; $types .= 'ss'; $like = '%' . $keyword . '%'; $params[] = $like; $params[] = $like; }
@@ -77,6 +77,9 @@ function listing_search(mysqli $conn, string $keyword = '', string $category = '
     if ($condition !== '') { $sql .= ' AND l.`condition`=?'; $types .= 's'; $params[] = $condition; }
     if ($min !== '') { $sql .= ' AND l.current_bid>=?'; $types .= 'd'; $params[] = (float)$min; }
     if ($max !== '') { $sql .= ' AND l.current_bid<=?'; $types .= 'd'; $params[] = (float)$max; }
+    if ($time === '1h') { $sql .= ' AND l.end_datetime <= DATE_ADD(NOW(), INTERVAL 1 HOUR)'; }
+    if ($time === '24h') { $sql .= ' AND l.end_datetime <= DATE_ADD(NOW(), INTERVAL 24 HOUR)'; }
+    if ($time === '7d') { $sql .= ' AND l.end_datetime <= DATE_ADD(NOW(), INTERVAL 7 DAY)'; }
     $sql .= ' ORDER BY l.end_datetime ASC';
     return db_rows($conn, $sql, $types, $params);
 }
@@ -105,13 +108,31 @@ function bid_place(mysqli $conn, int $listingId, int $buyerId, float $amount, in
     $updated = db_row($conn, 'SELECT current_bid FROM listings WHERE id=?', 'i', [$listingId]);
     return ['success'=>true,'message'=>'Bid placed successfully','bid_id'=>$bidId,'current_bid'=>$updated['current_bid']];
 }
-function bid_set_auto(mysqli $conn, int $listingId, int $buyerId, float $maxAmount): array { $listing = db_row($conn, 'SELECT current_bid FROM listings WHERE id=? AND status=\'active\'', 'i', [$listingId]); if (!$listing) return ['success'=>false,'message'=>'Active listing not found']; if ((float)$maxAmount <= (float)$listing['current_bid']) return ['success'=>false,'message'=>'Auto bid max must be higher than current bid']; db_execute($conn, 'INSERT INTO auto_bids (listing_id,buyer_id,max_amount,is_active) VALUES (?,?,?,1) ON DUPLICATE KEY UPDATE max_amount=VALUES(max_amount), is_active=1', 'iid', [$listingId, $buyerId, $maxAmount]); return ['success'=>true,'message'=>'Auto bid saved']; }
+function bid_set_auto(mysqli $conn, int $listingId, int $buyerId, float $maxAmount): array {
+    $listing = db_row($conn, 'SELECT * FROM listings WHERE id=? AND status=\'active\'', 'i', [$listingId]);
+    if (!$listing) return ['success'=>false,'message'=>'Active listing not found'];
+    if ((int)$listing['seller_id'] === (int)$buyerId) return ['success'=>false,'message'=>'You cannot bid on your own listing'];
+    if (strtotime($listing['end_datetime']) <= time()) return ['success'=>false,'message'=>'Auction already ended'];
+    if ((float)$maxAmount <= (float)$listing['current_bid']) return ['success'=>false,'message'=>'Auto bid max must be higher than current bid'];
+
+    db_execute($conn, 'INSERT INTO auto_bids (listing_id,buyer_id,max_amount,is_active) VALUES (?,?,?,1) ON DUPLICATE KEY UPDATE max_amount=VALUES(max_amount), is_active=1', 'iid', [$listingId, $buyerId, $maxAmount]);
+
+    $topBid = db_row($conn, 'SELECT buyer_id, amount FROM bids WHERE listing_id=? ORDER BY amount DESC LIMIT 1', 'i', [$listingId]);
+    if (!$topBid || (int)$topBid['buyer_id'] !== $buyerId) {
+        $nextAmount = min($maxAmount, (float)$listing['current_bid'] + 100);
+        db_insert($conn, 'INSERT INTO bids (listing_id,buyer_id,amount,is_auto_bid) VALUES (?,?,?,1)', 'iid', [$listingId, $buyerId, $nextAmount]);
+        db_execute($conn, 'UPDATE listings SET current_bid=? WHERE id=?', 'di', [$nextAmount, $listingId]);
+    }
+
+    $updated = db_row($conn, 'SELECT current_bid FROM listings WHERE id=?', 'i', [$listingId]);
+    return ['success'=>true,'message'=>'Auto bid saved','current_bid'=>$updated['current_bid'] ?? $listing['current_bid']];
+}
 function bid_process_auto_bids(mysqli $conn, int $listingId, int $latestBuyer, float $latestAmount): void { $auto = db_row($conn, 'SELECT * FROM auto_bids WHERE listing_id=? AND buyer_id<>? AND is_active=1 AND max_amount>? ORDER BY max_amount DESC LIMIT 1', 'iid', [$listingId, $latestBuyer, $latestAmount]); if (!$auto) return; $newAmount = min((float)$auto['max_amount'], (float)$latestAmount + 100); db_insert($conn, 'INSERT INTO bids (listing_id,buyer_id,amount,is_auto_bid) VALUES (?,?,?,1)', 'iid', [$listingId, $auto['buyer_id'], $newAmount]); db_execute($conn, 'UPDATE listings SET current_bid=? WHERE id=?', 'di', [$newAmount, $listingId]); }
 function bid_by_buyer(mysqli $conn, int $buyer): array { return db_rows($conn, "SELECT l.*, MAX(b.amount) my_highest, CASE WHEN l.winner_bid_id IN (SELECT id FROM bids WHERE buyer_id=?) THEN 'Won' WHEN l.status='ended' THEN 'Lost' WHEN MAX(b.amount)=l.current_bid THEN 'Leading' ELSE 'Outbid' END bid_status FROM bids b JOIN listings l ON l.id=b.listing_id WHERE b.buyer_id=? GROUP BY l.id ORDER BY MAX(b.created_at) DESC", 'ii', [$buyer, $buyer]); }
 function bid_spending(mysqli $conn, int $buyer): ?array { return db_row($conn, 'SELECT COUNT(*) total_bids, COALESCE(SUM(CASE WHEN l.winner_bid_id=b.id THEN b.amount ELSE 0 END),0) total_spent, SUM(CASE WHEN l.winner_bid_id=b.id THEN 1 ELSE 0 END) wins FROM bids b JOIN listings l ON l.id=b.listing_id WHERE b.buyer_id=?', 'i', [$buyer]); }
-function watchlist_rows(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT w.*, l.title,l.current_bid,l.end_datetime,l.status FROM watchlist w JOIN listings l ON l.id=w.listing_id WHERE w.buyer_id=?', 'i', [$user]); }
-function watchlist_toggle(mysqli $conn, int $user, int $listing): string { $exists = db_row($conn, 'SELECT id FROM watchlist WHERE buyer_id=? AND listing_id=?', 'ii', [$user, $listing]); if ($exists) { db_execute($conn, 'DELETE FROM watchlist WHERE id=?', 'i', [$exists['id']]); return 'Removed from watchlist'; } db_execute($conn, 'INSERT INTO watchlist (buyer_id,listing_id) VALUES (?,?)', 'ii', [$user, $listing]); return 'Added to watchlist'; }
-function won_auctions(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT l.*, b.amount winning_amount, s.name seller_name, s.email seller_email, s.phone seller_phone FROM listings l JOIN bids b ON b.id=l.winner_bid_id JOIN users s ON s.id=l.seller_id WHERE b.buyer_id=?', 'i', [$user]); }
+function watchlist_rows(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT w.*, l.title,l.current_bid,l.end_datetime,l.status FROM watchlist w JOIN listings l ON l.id=w.listing_id WHERE w.buyer_id=? ORDER BY l.end_datetime ASC', 'i', [$user]); }
+function watchlist_toggle(mysqli $conn, int $user, int $listing): string { $target = db_row($conn, "SELECT id FROM listings WHERE id=? AND status='active'", 'i', [$listing]); if (!$target) return 'Active auction not found'; $exists = db_row($conn, 'SELECT id FROM watchlist WHERE buyer_id=? AND listing_id=?', 'ii', [$user, $listing]); if ($exists) { db_execute($conn, 'DELETE FROM watchlist WHERE id=?', 'i', [$exists['id']]); return 'Removed from watchlist'; } db_execute($conn, 'INSERT IGNORE INTO watchlist (buyer_id,listing_id) VALUES (?,?)', 'ii', [$user, $listing]); return 'Added to watchlist'; }
+function won_auctions(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT l.*, b.amount winning_amount, s.id seller_id, s.name seller_name, s.email seller_email, s.phone seller_phone FROM listings l JOIN bids b ON b.id=l.winner_bid_id JOIN users s ON s.id=l.seller_id WHERE b.buyer_id=? ORDER BY l.end_datetime DESC', 'i', [$user]); }
 
 function review_create(mysqli $conn, int $listing, int $reviewer, int $reviewee, int $rating, string $text): bool {
     $created = db_execute($conn, 'INSERT INTO reviews (listing_id,reviewer_id,reviewee_id,rating,review_text) VALUES (?,?,?,?,?)', 'iiiis', [$listing, $reviewer, $reviewee, $rating, $text]);
@@ -121,10 +142,15 @@ function review_create(mysqli $conn, int $listing, int $reviewer, int $reviewee,
     return $created;
 }
 function review_received(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT r.*, u.name reviewer_name, l.title FROM reviews r JOIN users u ON u.id=r.reviewer_id JOIN listings l ON l.id=r.listing_id WHERE r.reviewee_id=? ORDER BY r.created_at DESC', 'i', [$user]); }
+function review_sent(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT r.*, u.name reviewee_name, l.title FROM reviews r JOIN users u ON u.id=r.reviewee_id JOIN listings l ON l.id=r.listing_id WHERE r.reviewer_id=? ORDER BY r.created_at DESC', 'i', [$user]); }
+function reviewable_won_auctions(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT l.id listing_id, l.title, l.seller_id, s.name seller_name FROM listings l JOIN bids b ON b.id=l.winner_bid_id JOIN users s ON s.id=l.seller_id LEFT JOIN reviews r ON r.listing_id=l.id AND r.reviewer_id=? WHERE b.buyer_id=? AND l.status=\'ended\' AND r.id IS NULL ORDER BY l.end_datetime DESC', 'ii', [$user, $user]); }
+function buyer_can_review_listing(mysqli $conn, int $listing, int $buyer, int $seller): bool { return (bool)db_row($conn, 'SELECT l.id FROM listings l JOIN bids b ON b.id=l.winner_bid_id LEFT JOIN reviews r ON r.listing_id=l.id AND r.reviewer_id=? WHERE l.id=? AND b.buyer_id=? AND l.seller_id=? AND l.status=\'ended\' AND r.id IS NULL', 'iiii', [$buyer, $listing, $buyer, $seller]); }
 function review_respond(mysqli $conn, int $id, int $user, string $text): bool { return db_execute($conn, 'UPDATE reviews SET response_text=? WHERE id=? AND reviewee_id=?', 'sii', [$text, $id, $user]); }
 
 function report_create_listing(mysqli $conn, int $listing, int $reporter, string $reason, string $description): bool { return db_execute($conn, 'INSERT INTO listing_reports (listing_id,reporter_id,reason,description) VALUES (?,?,?,?)', 'iiss', [$listing, $reporter, $reason, $description]); }
 function report_create_user(mysqli $conn, int $reporter, int $reported, string $reason, string $description): bool { return db_execute($conn, 'INSERT INTO user_reports (reporter_id,reported_user_id,reason,description) VALUES (?,?,?,?)', 'iiss', [$reporter, $reported, $reason, $description]); }
+function buyer_reportable_listings(mysqli $conn): array { return db_rows($conn, "SELECT id, title FROM listings WHERE status IN ('active','ended') ORDER BY created_at DESC"); }
+function buyer_reportable_users(mysqli $conn, int $currentUser): array { return db_rows($conn, 'SELECT id, name, role FROM users WHERE id<>? AND is_active=1 ORDER BY name', 'i', [$currentUser]); }
 function report_listing_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, l.title, u.name reporter_name FROM listing_reports r JOIN listings l ON l.id=r.listing_id JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC'); }
 function report_user_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, a.name reporter_name, b.name reported_name FROM user_reports r JOIN users a ON a.id=r.reporter_id JOIN users b ON b.id=r.reported_user_id ORDER BY r.created_at DESC'); }
 function report_update_listing(mysqli $conn, int $id, string $status, string $note): bool { return db_execute($conn, 'UPDATE listing_reports SET status=?, moderator_note=? WHERE id=?', 'ssi', [$status, $note, $id]); }
@@ -157,7 +183,7 @@ function admin_announcement_add(mysqli $conn, string $title, string $message, in
 function admin_announcements(mysqli $conn): array { return db_rows($conn, 'SELECT * FROM announcements ORDER BY created_at DESC'); }
 
 function buyer_notifications(mysqli $conn, int $buyer): array {
-    $outbid = db_rows($conn, "SELECT l.id, l.title, 'outbid' type, 'You have been outbid on this auction.' message FROM bids b JOIN listings l ON l.id=b.listing_id WHERE b.buyer_id=? AND l.status='active' GROUP BY l.id HAVING MAX(b.amount) < l.current_bid", 'i', [$buyer]);
+   $outbid = db_rows($conn, "SELECT l.id, l.title, 'outbid' type, 'You have been outbid on this auction.' message FROM bids b JOIN listings l ON l.id=b.listing_id WHERE b.buyer_id=? AND l.status='active' GROUP BY l.id, l.title HAVING MAX(b.amount) < MAX(l.current_bid)", 'i', [$buyer]);
     $endingSoon = db_rows($conn, "SELECT l.id, l.title, 'ending_soon' type, 'This auction ends within 1 hour.' message FROM watchlist w JOIN listings l ON l.id=w.listing_id WHERE w.buyer_id=? AND l.status='active' AND l.end_datetime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 HOUR)", 'i', [$buyer]);
     $won = db_rows($conn, "SELECT l.id, l.title, 'won' type, 'You won this auction.' message FROM listings l JOIN bids b ON b.id=l.winner_bid_id WHERE b.buyer_id=? AND l.status='ended'", 'i', [$buyer]);
     return array_merge($outbid, $endingSoon, $won);

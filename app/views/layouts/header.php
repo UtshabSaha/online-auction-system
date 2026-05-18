@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Online Auction System</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+
 </head>
 <body>
 <nav class="navbar">
@@ -26,10 +27,13 @@
 <aside class="sidebar">
     <strong><?= e($_SESSION['user_name']) ?></strong>
     <span class="badge"><?= e(current_role()) ?></span>
-    <a href="index.php?page=buyer_dashboard">Buyer Dashboard</a>
-    <a href="index.php?page=watchlist">Watchlist</a>
-    <a href="index.php?page=my_bids">My Bids</a>
-    <a href="index.php?page=spending">Spending</a>
+    <?php if (current_role()==='buyer'): ?>
+        <a href="index.php?page=buyer_dashboard">Buyer Dashboard</a>
+        <a href="index.php?page=watchlist">Watchlist</a>
+        <a href="index.php?page=my_bids">My Bids</a>
+        <a href="index.php?page=won_auctions">Won Auctions</a>
+        <a href="index.php?page=spending">Spending</a>
+    <?php endif; ?>
     <?php if (current_role()==='seller'): ?>
         <a href="index.php?page=seller_dashboard">Seller Dashboard</a>
         <a href="index.php?page=create_listing">Create Listing</a>

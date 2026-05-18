@@ -18,7 +18,13 @@ function placeBid(listingId){
     });
 }
 function setAutoBid(listingId){
-    postAjax('public/api/auto_bid.php',{listing_id:listingId,max_amount:qs('autoBidAmount').value},function(res){qs('autoBidMessage').innerText=res.message;});
+    postAjax('public/api/auto_bid.php',{listing_id:listingId,max_amount:qs('autoBidAmount').value},function(res){
+        qs('autoBidMessage').innerText=res.message;
+        if(res.success){
+            if(qs('currentBid') && res.current_bid) qs('currentBid').innerText=res.current_bid;
+            refreshBids(listingId);
+        }
+    });
 }
 function toggleWatch(listingId){
     postAjax('public/api/watchlist_toggle.php',{listing_id:listingId},function(res){alert(res.message);});
@@ -36,9 +42,9 @@ function listingCard(l){
     return '<div class="card auction-card"><img src="'+escapeHtml(img)+'" alt=""><h3>'+escapeHtml(l.title)+'</h3><p>'+escapeHtml(l.category_name)+' - '+escapeHtml(l.condition)+'</p><p><strong>Current bid:</strong> '+escapeHtml(l.current_bid)+'</p><p><strong>Time left:</strong> <span class="countdown" data-countdown="'+escapeHtml(l.end_datetime)+'">'+escapeHtml(l.end_datetime)+'</span></p><a class="btn" href="index.php?page=auction&id='+escapeHtml(l.id)+'">View Auction</a></div>';
 }
 function searchAuctions(){
-    const params=new URLSearchParams({q:qs('q').value,category:qs('category').value,condition:qs('condition').value,min:qs('min').value,max:qs('max').value});
+    const params=new URLSearchParams({q:qs('q').value,category:qs('category').value,condition:qs('condition').value,min:qs('min').value,max:qs('max').value,time:qs('time').value});
     getAjax('public/api/search_listings.php?'+params.toString(),function(res){
-        if(!res.success)return; qs('auctionGrid').innerHTML=res.data.map(listingCard).join('');
+        if(!res.success)return; qs('auctionGrid').innerHTML=res.data.map(listingCard).join(''); updateCountdowns();
     });
 }
 function moderateListing(id,status){
