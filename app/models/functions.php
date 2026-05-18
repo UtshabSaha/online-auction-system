@@ -1,165 +1,499 @@
 <?php
-function db_rows(mysqli $conn, string $sql, string $types = '', array $params = []): array {
-    $stmt = mysqli_prepare($conn, $sql);
-    if (!$stmt) { return []; }
-    if ($types) { mysqli_stmt_bind_param($stmt, $types, ...$params); }
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    return $result ? mysqli_fetch_all($result, MYSQLI_ASSOC) : [];
-}
+require_once __DIR__ . '/../models/functions.php';
 
-function db_row(mysqli $conn, string $sql, string $types = '', array $params = []): ?array {
-    $rows = db_rows($conn, $sql, $types, $params);
-    return $rows[0] ?? null;
-}
+function auth_login(mysqli $conn): void {
+    $error = '';
+    $old_email = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $email = trim($_POST['email'] ?? '');
+        $old_email = $email;
+        $password = $_POST['password'] ?? '';
+        $user = user_find_by_email($conn, $email);
 
-function db_execute(mysqli $conn, string $sql, string $types = '', array $params = []): bool {
-    $stmt = mysqli_prepare($conn, $sql);
-    if (!$stmt) { return false; }
-    if ($types) { mysqli_stmt_bind_param($stmt, $types, ...$params); }
-    return mysqli_stmt_execute($stmt);
-}
-
-function db_insert(mysqli $conn, string $sql, string $types = '', array $params = []): int {
-    $stmt = mysqli_prepare($conn, $sql);
-    if (!$stmt) { return 0; }
-    if ($types) { mysqli_stmt_bind_param($stmt, $types, ...$params); }
-    mysqli_stmt_execute($stmt);
-    return mysqli_insert_id($conn);
-}
-
-function render_view(string $view, array $data = []): void {
-    global $conn;
-    extract($data);
-    $viewFile = __DIR__ . '/../views/' . $view . '.php';
-    require __DIR__ . '/../views/layouts/header.php';
-    require $viewFile;
-    require __DIR__ . '/../views/layouts/footer.php';
-}
-
-function format_errors(array $errors): string {
-    return implode('<br>', array_map('e', $errors));
-}
-
-function user_find_by_email(mysqli $conn, string $email): ?array { return db_row($conn, 'SELECT * FROM users WHERE email = ?', 's', [$email]); }
-function user_find(mysqli $conn, int $id): ?array { return db_row($conn, 'SELECT * FROM users WHERE id = ?', 'i', [$id]); }
-function user_create(mysqli $conn, string $name, string $email, string $hash, string $phone, string $bio): int { return db_insert($conn, 'INSERT INTO users (name,email,password_hash,phone,bio,role) VALUES (?,?,?,?,?,\'buyer\')', 'sssss', [$name, $email, $hash, $phone, $bio]); }
-function user_update_profile(mysqli $conn, int $id, string $name, string $phone, string $bio, ?string $pic = null): bool { return $pic ? db_execute($conn, 'UPDATE users SET name=?, phone=?, bio=?, profile_pic=? WHERE id=?', 'ssssi', [$name, $phone, $bio, $pic, $id]) : db_execute($conn, 'UPDATE users SET name=?, phone=?, bio=? WHERE id=?', 'sssi', [$name, $phone, $bio, $id]); }
-function user_change_password(mysqli $conn, int $id, string $hash): bool { return db_execute($conn, 'UPDATE users SET password_hash=? WHERE id=?', 'si', [$hash, $id]); }
-function user_all(mysqli $conn, string $keyword = ''): array { $like = '%' . $keyword . '%'; return db_rows($conn, 'SELECT * FROM users WHERE name LIKE ? OR email LIKE ? OR role LIKE ? ORDER BY created_at DESC', 'sss', [$like, $like, $like]); }
-function user_set_active(mysqli $conn, int $id, int $active): bool { return db_execute($conn, 'UPDATE users SET is_active=? WHERE id=?', 'ii', [$active, $id]); }
-function user_set_role(mysqli $conn, int $id, string $role): bool { return db_execute($conn, 'UPDATE users SET role=? WHERE id=?', 'si', [$role, $id]); }
-function user_revoke_seller(mysqli $conn, int $id): bool { return db_execute($conn, 'UPDATE users SET seller_verified=0, role=\'buyer\' WHERE id=?', 'i', [$id]); }
-function user_stats(mysqli $conn): ?array { return db_row($conn, "SELECT COUNT(*) total, SUM(role='buyer') buyers, SUM(role='seller') sellers, SUM(role='moderator') moderators, SUM(role='admin') admins FROM users"); }
-
-function listing_close_expired_auctions(mysqli $conn): void {
-    $expired = db_rows($conn, "SELECT id, seller_id, reserve_price FROM listings WHERE status='active' AND end_datetime < NOW()");
-    foreach ($expired as $listing) {
-        $top = db_row($conn, 'SELECT id, amount FROM bids WHERE listing_id=? ORDER BY amount DESC LIMIT 1', 'i', [$listing['id']]);
-        if ($top && ($listing['reserve_price'] === null || (float)$top['amount'] >= (float)$listing['reserve_price'])) {
-            db_execute($conn, "UPDATE listings SET status='ended', winner_bid_id=? WHERE id=?", 'ii', [$top['id'], $listing['id']]);
-            $rateRow = db_row($conn, 'SELECT rate FROM commission_rates WHERE is_default=1 ORDER BY id DESC LIMIT 1');
-            $rate = (float)($rateRow['rate'] ?? 5.00);
-            $commission = ((float)$top['amount'] * $rate) / 100;
-            db_execute($conn, 'INSERT INTO platform_fees (listing_id,seller_id,final_price,commission_rate,commission_amount) VALUES (?,?,?,?,?)', 'iiddd', [$listing['id'], $listing['seller_id'], $top['amount'], $rate, $commission]);
+        if (!$user || !$user['is_active'] || !password_verify($password, $user['password_hash'])) {
+            $error = 'Invalid login or inactive account.';
         } else {
-            db_execute($conn, "UPDATE listings SET status='ended' WHERE id=?", 'i', [$listing['id']]);
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_name'] = $user['name'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['seller_verified'] = $user['seller_verified'];
+            redirect_to('index.php?page=' . $user['role'] . '_dashboard');
         }
     }
+
+    render_view('auth/login', compact('error', 'old_email'));
 }
 
-function listing_categories(mysqli $conn): array { return db_rows($conn, 'SELECT * FROM categories ORDER BY name'); }
-function listing_search(mysqli $conn, string $keyword = '', string $category = '', string $condition = '', string $min = '', string $max = ''): array {
-    $sql = "SELECT l.*, u.name seller_name, c.name category_name, (SELECT image_path FROM listing_images WHERE listing_id=l.id ORDER BY display_order LIMIT 1) image_path FROM listings l JOIN users u ON u.id=l.seller_id JOIN categories c ON c.id=l.category_id WHERE l.status='active'";
-    $types = ''; $params = [];
-    if ($keyword !== '') { $sql .= ' AND (l.title LIKE ? OR l.description LIKE ?)'; $types .= 'ss'; $like = '%' . $keyword . '%'; $params[] = $like; $params[] = $like; }
-    if ($category !== '') { $sql .= ' AND l.category_id=?'; $types .= 'i'; $params[] = (int)$category; }
-    if ($condition !== '') { $sql .= ' AND l.`condition`=?'; $types .= 's'; $params[] = $condition; }
-    if ($min !== '') { $sql .= ' AND l.current_bid>=?'; $types .= 'd'; $params[] = (float)$min; }
-    if ($max !== '') { $sql .= ' AND l.current_bid<=?'; $types .= 'd'; $params[] = (float)$max; }
-    $sql .= ' ORDER BY l.end_datetime ASC';
-    return db_rows($conn, $sql, $types, $params);
-}
-function listing_find(mysqli $conn, int $id): ?array { return db_row($conn, 'SELECT l.*, u.name seller_name, u.email seller_email, u.phone seller_phone, u.reputation_score, c.name category_name FROM listings l JOIN users u ON u.id=l.seller_id JOIN categories c ON c.id=l.category_id WHERE l.id=?', 'i', [$id]); }
-function listing_images(mysqli $conn, int $id): array { return db_rows($conn, 'SELECT * FROM listing_images WHERE listing_id=? ORDER BY display_order', 'i', [$id]); }
-function listing_create(mysqli $conn, int $seller, int $category, string $title, string $description, string $condition, float $start, ?float $reserve, string $end): int { return db_insert($conn, 'INSERT INTO listings (seller_id,category_id,title,description,`condition`,starting_price,reserve_price,current_bid,end_datetime,status) VALUES (?,?,?,?,?,?,?,?,?,\'pending_review\')', 'iisssddds', [$seller, $category, $title, $description, $condition, $start, $reserve, $start, $end]); }
-function listing_add_image(mysqli $conn, int $listing, string $path, int $order): bool { return db_execute($conn, 'INSERT INTO listing_images (listing_id,image_path,display_order) VALUES (?,?,?)', 'isi', [$listing, $path, $order]); }
-function listing_by_seller(mysqli $conn, int $seller): array { return db_rows($conn, 'SELECT l.*, c.name category_name, COUNT(b.id) bid_count FROM listings l JOIN categories c ON c.id=l.category_id LEFT JOIN bids b ON b.listing_id=l.id WHERE l.seller_id=? GROUP BY l.id ORDER BY l.created_at DESC', 'i', [$seller]); }
-function listing_update_if_no_bids(mysqli $conn, int $id, int $seller, string $title, string $description, string $condition, float $start, ?float $reserve, string $end): bool { return db_execute($conn, 'UPDATE listings SET title=?, description=?, `condition`=?, starting_price=?, reserve_price=?, current_bid=?, end_datetime=? WHERE id=? AND seller_id=? AND (SELECT COUNT(*) FROM bids WHERE bids.listing_id=listings.id)=0', 'sssdddsii', [$title, $description, $condition, $start, $reserve, $start, $end, $id, $seller]); }
-function listing_pending(mysqli $conn): array { return db_rows($conn, "SELECT l.*, u.name seller_name, c.name category_name FROM listings l JOIN users u ON u.id=l.seller_id JOIN categories c ON c.id=l.category_id WHERE l.status='pending_review' ORDER BY l.created_at"); }
-function listing_set_status(mysqli $conn, int $id, string $status, string $reason = ''): bool { if ($status === 'rejected') return db_execute($conn, 'UPDATE listings SET status=?, rejection_reason=? WHERE id=?', 'ssi', [$status, $reason, $id]); if ($status === 'cancelled') return db_execute($conn, 'UPDATE listings SET status=?, cancel_reason=? WHERE id=?', 'ssi', [$status, $reason, $id]); return db_execute($conn, 'UPDATE listings SET status=? WHERE id=?', 'si', [$status, $id]); }
-function listing_all_admin(mysqli $conn, string $status = ''): array { return $status ? db_rows($conn, 'SELECT l.*, u.name seller_name, c.name category_name FROM listings l JOIN users u ON u.id=l.seller_id JOIN categories c ON c.id=l.category_id WHERE l.status=? ORDER BY l.created_at DESC', 's', [$status]) : db_rows($conn, 'SELECT l.*, u.name seller_name, c.name category_name FROM listings l JOIN users u ON u.id=l.seller_id JOIN categories c ON c.id=l.category_id ORDER BY l.created_at DESC'); }
-function listing_set_featured(mysqli $conn, int $id, int $featured): bool { return db_execute($conn, 'UPDATE listings SET is_featured=? WHERE id=?', 'ii', [$featured, $id]); }
+function auth_register(mysqli $conn): void {
+    $error = '';
+    $old = ['name' => '', 'email' => '', 'phone' => '', 'bio' => ''];
 
-function bid_history(mysqli $conn, int $listingId): array { return db_rows($conn, 'SELECT b.*, u.name buyer_name FROM bids b JOIN users u ON u.id=b.buyer_id WHERE b.listing_id=? ORDER BY b.amount DESC, b.created_at DESC', 'i', [$listingId]); }
-function bid_place(mysqli $conn, int $listingId, int $buyerId, float $amount, int $auto = 0): array {
-    $listing = db_row($conn, 'SELECT * FROM listings WHERE id=?', 'i', [$listingId]);
-    if (!$listing) return ['success'=>false,'message'=>'Listing not found'];
-    if ($listing['status'] !== 'active') return ['success'=>false,'message'=>'Auction is not active'];
-    if ((int)$listing['seller_id'] === (int)$buyerId) return ['success'=>false,'message'=>'You cannot bid on your own listing'];
-    if (strtotime($listing['end_datetime']) <= time()) return ['success'=>false,'message'=>'Auction already ended'];
-    if ((float)$amount <= (float)$listing['current_bid']) return ['success'=>false,'message'=>'Bid must be greater than current bid'];
-    $bidId = db_insert($conn, 'INSERT INTO bids (listing_id,buyer_id,amount,is_auto_bid) VALUES (?,?,?,?)', 'iidi', [$listingId, $buyerId, $amount, $auto]);
-    db_execute($conn, 'UPDATE listings SET current_bid=? WHERE id=?', 'di', [$amount, $listingId]);
-    bid_process_auto_bids($conn, $listingId, $buyerId, $amount);
-    $updated = db_row($conn, 'SELECT current_bid FROM listings WHERE id=?', 'i', [$listingId]);
-    return ['success'=>true,'message'=>'Bid placed successfully','bid_id'=>$bidId,'current_bid'=>$updated['current_bid']];
-}
-function bid_set_auto(mysqli $conn, int $listingId, int $buyerId, float $maxAmount): array { $listing = db_row($conn, 'SELECT current_bid FROM listings WHERE id=? AND status=\'active\'', 'i', [$listingId]); if (!$listing) return ['success'=>false,'message'=>'Active listing not found']; if ((float)$maxAmount <= (float)$listing['current_bid']) return ['success'=>false,'message'=>'Auto bid max must be higher than current bid']; db_execute($conn, 'INSERT INTO auto_bids (listing_id,buyer_id,max_amount,is_active) VALUES (?,?,?,1) ON DUPLICATE KEY UPDATE max_amount=VALUES(max_amount), is_active=1', 'iid', [$listingId, $buyerId, $maxAmount]); return ['success'=>true,'message'=>'Auto bid saved']; }
-function bid_process_auto_bids(mysqli $conn, int $listingId, int $latestBuyer, float $latestAmount): void { $auto = db_row($conn, 'SELECT * FROM auto_bids WHERE listing_id=? AND buyer_id<>? AND is_active=1 AND max_amount>? ORDER BY max_amount DESC LIMIT 1', 'iid', [$listingId, $latestBuyer, $latestAmount]); if (!$auto) return; $newAmount = min((float)$auto['max_amount'], (float)$latestAmount + 100); db_insert($conn, 'INSERT INTO bids (listing_id,buyer_id,amount,is_auto_bid) VALUES (?,?,?,1)', 'iid', [$listingId, $auto['buyer_id'], $newAmount]); db_execute($conn, 'UPDATE listings SET current_bid=? WHERE id=?', 'di', [$newAmount, $listingId]); }
-function bid_by_buyer(mysqli $conn, int $buyer): array { return db_rows($conn, "SELECT l.*, MAX(b.amount) my_highest, CASE WHEN l.winner_bid_id IN (SELECT id FROM bids WHERE buyer_id=?) THEN 'Won' WHEN l.status='ended' THEN 'Lost' WHEN MAX(b.amount)=l.current_bid THEN 'Leading' ELSE 'Outbid' END bid_status FROM bids b JOIN listings l ON l.id=b.listing_id WHERE b.buyer_id=? GROUP BY l.id ORDER BY MAX(b.created_at) DESC", 'ii', [$buyer, $buyer]); }
-function bid_spending(mysqli $conn, int $buyer): ?array { return db_row($conn, 'SELECT COUNT(*) total_bids, COALESCE(SUM(CASE WHEN l.winner_bid_id=b.id THEN b.amount ELSE 0 END),0) total_spent, SUM(CASE WHEN l.winner_bid_id=b.id THEN 1 ELSE 0 END) wins FROM bids b JOIN listings l ON l.id=b.listing_id WHERE b.buyer_id=?', 'i', [$buyer]); }
-function watchlist_rows(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT w.*, l.title,l.current_bid,l.end_datetime,l.status FROM watchlist w JOIN listings l ON l.id=w.listing_id WHERE w.buyer_id=?', 'i', [$user]); }
-function watchlist_toggle(mysqli $conn, int $user, int $listing): string { $exists = db_row($conn, 'SELECT id FROM watchlist WHERE buyer_id=? AND listing_id=?', 'ii', [$user, $listing]); if ($exists) { db_execute($conn, 'DELETE FROM watchlist WHERE id=?', 'i', [$exists['id']]); return 'Removed from watchlist'; } db_execute($conn, 'INSERT INTO watchlist (buyer_id,listing_id) VALUES (?,?)', 'ii', [$user, $listing]); return 'Added to watchlist'; }
-function won_auctions(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT l.*, b.amount winning_amount, s.name seller_name, s.email seller_email, s.phone seller_phone FROM listings l JOIN bids b ON b.id=l.winner_bid_id JOIN users s ON s.id=l.seller_id WHERE b.buyer_id=?', 'i', [$user]); }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $old = [
+            'name' => trim($_POST['name'] ?? ''),
+            'email' => trim($_POST['email'] ?? ''),
+            'phone' => trim($_POST['phone'] ?? ''),
+            'bio' => trim($_POST['bio'] ?? ''),
+        ];
+        $password = $_POST['password'] ?? '';
+        $confirm = $_POST['confirm_password'] ?? '';
+        $errors = [];
 
-function review_create(mysqli $conn, int $listing, int $reviewer, int $reviewee, int $rating, string $text): bool {
-    $created = db_execute($conn, 'INSERT INTO reviews (listing_id,reviewer_id,reviewee_id,rating,review_text) VALUES (?,?,?,?,?)', 'iiiis', [$listing, $reviewer, $reviewee, $rating, $text]);
-    if ($created) {
-        db_execute($conn, 'UPDATE users SET reputation_score=(SELECT ROUND(AVG(rating),2) FROM reviews WHERE reviewee_id=?) WHERE id=?', 'ii', [$reviewee, $reviewee]);
+        if ($old['name'] === '') { $errors[] = 'Name is required'; }
+        if (!filter_var($old['email'], FILTER_VALIDATE_EMAIL)) { $errors[] = 'Valid email is required'; }
+        if (user_find_by_email($conn, $old['email'])) { $errors[] = 'Email already exists'; }
+        if (strlen($password) < 8) { $errors[] = 'Password must be at least 8 characters'; }
+        if ($password !== $confirm) { $errors[] = 'Passwords must match'; }
+
+        if ($errors) {
+            $error = format_errors($errors);
+        } else {
+            user_create($conn, $old['name'], $old['email'], password_hash($password, PASSWORD_DEFAULT), $old['phone'], $old['bio']);
+            redirect_to('index.php?page=login');
+        }
     }
-    return $created;
+
+    render_view('auth/register', compact('error', 'old'));
 }
-function review_received(mysqli $conn, int $user): array { return db_rows($conn, 'SELECT r.*, u.name reviewer_name, l.title FROM reviews r JOIN users u ON u.id=r.reviewer_id JOIN listings l ON l.id=r.listing_id WHERE r.reviewee_id=? ORDER BY r.created_at DESC', 'i', [$user]); }
-function review_respond(mysqli $conn, int $id, int $user, string $text): bool { return db_execute($conn, 'UPDATE reviews SET response_text=? WHERE id=? AND reviewee_id=?', 'sii', [$text, $id, $user]); }
 
-function report_create_listing(mysqli $conn, int $listing, int $reporter, string $reason, string $description): bool { return db_execute($conn, 'INSERT INTO listing_reports (listing_id,reporter_id,reason,description) VALUES (?,?,?,?)', 'iiss', [$listing, $reporter, $reason, $description]); }
-function report_create_user(mysqli $conn, int $reporter, int $reported, string $reason, string $description): bool { return db_execute($conn, 'INSERT INTO user_reports (reporter_id,reported_user_id,reason,description) VALUES (?,?,?,?)', 'iiss', [$reporter, $reported, $reason, $description]); }
-function report_listing_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, l.title, u.name reporter_name FROM listing_reports r JOIN listings l ON l.id=r.listing_id JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC'); }
-function report_user_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, a.name reporter_name, b.name reported_name FROM user_reports r JOIN users a ON a.id=r.reporter_id JOIN users b ON b.id=r.reported_user_id ORDER BY r.created_at DESC'); }
-function report_update_listing(mysqli $conn, int $id, string $status, string $note): bool { return db_execute($conn, 'UPDATE listing_reports SET status=?, moderator_note=? WHERE id=?', 'ssi', [$status, $note, $id]); }
-function report_update_user(mysqli $conn, int $id, string $status, string $note): bool { return db_execute($conn, 'UPDATE user_reports SET status=?, moderator_note=? WHERE id=?', 'ssi', [$status, $note, $id]); }
-
-function seller_request_verification(mysqli $conn, int $user, string $motivation, string $doc): bool { return db_execute($conn, 'INSERT INTO seller_verification_requests (user_id,motivation,id_document_path) VALUES (?,?,?)', 'iss', [$user, $motivation, $doc]); }
-function seller_request_by_user(mysqli $conn, int $user): ?array { return db_row($conn, 'SELECT * FROM seller_verification_requests WHERE user_id=? ORDER BY submitted_at DESC LIMIT 1', 'i', [$user]); }
-function seller_create_template(mysqli $conn, int $seller, string $title, string $desc, int $cat, string $condition, float $price): bool { return db_execute($conn, 'INSERT INTO auction_templates (seller_id,title,description,category_id,`condition`,starting_price) VALUES (?,?,?,?,?,?)', 'issisd', [$seller, $title, $desc, $cat, $condition, $price]); }
-function seller_templates(mysqli $conn, int $seller): array { return db_rows($conn, 'SELECT t.*, c.name category_name FROM auction_templates t JOIN categories c ON c.id=t.category_id WHERE seller_id=?', 'i', [$seller]); }
-function seller_ended(mysqli $conn, int $seller): array { return db_rows($conn, "SELECT l.*, u.name winner_name, u.email winner_email, u.phone winner_phone FROM listings l LEFT JOIN bids b ON b.id=l.winner_bid_id LEFT JOIN users u ON u.id=b.buyer_id WHERE l.seller_id=? AND (l.status='ended' OR l.end_datetime<NOW()) ORDER BY l.end_datetime DESC", 'i', [$seller]); }
-function seller_analytics(mysqli $conn, int $seller): ?array { return db_row($conn, "SELECT COUNT(*) total_auctions, SUM(status='ended' AND winner_bid_id IS NOT NULL) sold, AVG(CASE WHEN winner_bid_id IS NOT NULL THEN current_bid END) avg_sale, COALESCE(SUM(CASE WHEN winner_bid_id IS NOT NULL THEN current_bid ELSE 0 END),0) revenue FROM listings WHERE seller_id=?", 'i', [$seller]); }
-
-function moderator_dashboard(mysqli $conn): ?array { return db_row($conn, "SELECT (SELECT COUNT(*) FROM listings WHERE status='pending_review') pending_listings, (SELECT COUNT(*) FROM listing_reports WHERE status='pending') listing_reports, (SELECT COUNT(*) FROM user_reports WHERE status='pending') user_reports, (SELECT COUNT(*) FROM warnings WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) warnings_week"); }
-function moderator_warn(mysqli $conn, int $user, int $by, string $reason): bool { return db_execute($conn, 'INSERT INTO warnings (user_id,issued_by,reason) VALUES (?,?,?)', 'iis', [$user, $by, $reason]); }
-function moderator_warnings(mysqli $conn): array { return db_rows($conn, 'SELECT w.*, u.name user_name, m.name issued_by_name FROM warnings w JOIN users u ON u.id=w.user_id JOIN users m ON m.id=w.issued_by ORDER BY w.created_at DESC'); }
-function moderator_add_category(mysqli $conn, string $name, string $desc, ?int $parent): bool { return db_execute($conn, 'INSERT INTO categories (name,description,parent_id) VALUES (?,?,?)', 'ssi', [$name, $desc, $parent]); }
-function moderator_rename_category(mysqli $conn, int $id, string $name, string $desc): bool { return db_execute($conn, 'UPDATE categories SET name=?, description=? WHERE id=?', 'ssi', [$name, $desc, $id]); }
-function moderator_delete_empty_category(mysqli $conn, int $id): bool { return db_execute($conn, 'DELETE FROM categories WHERE id=? AND NOT EXISTS (SELECT 1 FROM listings WHERE category_id=?)', 'ii', [$id, $id]); }
-function moderator_merge_category(mysqli $conn, int $source, int $dest): bool { db_execute($conn, 'UPDATE listings SET category_id=? WHERE category_id=?', 'ii', [$dest, $source]); return db_execute($conn, 'DELETE FROM categories WHERE id=?', 'i', [$source]); }
-function moderator_activity(mysqli $conn): ?array { return db_row($conn, "SELECT (SELECT COUNT(*) FROM listings WHERE status IN ('active','rejected')) reviewed, (SELECT COUNT(*) FROM listings WHERE status='active') approved, (SELECT COUNT(*) FROM listing_reports WHERE status<>'pending') listing_reports, (SELECT COUNT(*) FROM user_reports WHERE status<>'pending') user_reports, (SELECT COUNT(*) FROM warnings) warnings"); }
-function moderator_trust_scores(mysqli $conn): array { return db_rows($conn, 'SELECT u.*, (SELECT COUNT(*) FROM warnings w WHERE w.user_id=u.id) warnings, (SELECT COUNT(*) FROM user_reports r WHERE r.reported_user_id=u.id) reports FROM users u ORDER BY reputation_score DESC'); }
-
-function admin_verifications(mysqli $conn, string $status = 'pending'): array { return db_rows($conn, 'SELECT r.*, u.name, u.email, u.phone FROM seller_verification_requests r JOIN users u ON u.id=r.user_id WHERE r.status=? ORDER BY r.submitted_at', 's', [$status]); }
-function admin_decide_verification(mysqli $conn, int $id, string $status, int $admin, string $reason = ''): bool { $req = db_row($conn, 'SELECT * FROM seller_verification_requests WHERE id=?', 'i', [$id]); if (!$req) return false; db_execute($conn, 'UPDATE seller_verification_requests SET status=?, reviewed_by=?, reject_reason=?, reviewed_at=NOW() WHERE id=?', 'sisi', [$status, $admin, $reason, $id]); if ($status === 'approved') db_execute($conn, "UPDATE users SET role='seller', seller_verified=1 WHERE id=?", 'i', [$req['user_id']]); return true; }
-function admin_dashboard_stats(mysqli $conn): ?array { return db_row($conn, "SELECT (SELECT COUNT(*) FROM users) users, (SELECT COUNT(*) FROM listings WHERE status='active') active_listings, (SELECT COUNT(*) FROM bids WHERE DATE(created_at)=CURDATE()) bids_today, (SELECT COALESCE(SUM(commission_amount),0) FROM platform_fees WHERE MONTH(created_at)=MONTH(CURDATE())) commission_month, (SELECT COUNT(*) FROM seller_verification_requests WHERE status='pending') pending_sellers"); }
-function admin_financials(mysqli $conn): array { return db_rows($conn, 'SELECT DATE(created_at) day, SUM(commission_amount) commission, SUM(final_price) gross FROM platform_fees GROUP BY DATE(created_at) ORDER BY day DESC'); }
-function admin_set_default_rate(mysqli $conn, float $rate): bool { db_execute($conn, 'UPDATE commission_rates SET is_default=0 WHERE is_default=1'); return db_execute($conn, 'INSERT INTO commission_rates (rate,is_default) VALUES (?,1)', 'd', [$rate]); }
-function admin_bid_analytics(mysqli $conn): array { return db_rows($conn, 'SELECT DATE(created_at) day, COUNT(*) bids, AVG(amount) average_bid FROM bids GROUP BY DATE(created_at) ORDER BY day DESC'); }
-function admin_announcement_add(mysqli $conn, string $title, string $message, int $user): bool { return db_execute($conn, 'INSERT INTO announcements (title,message,posted_by) VALUES (?,?,?)', 'ssi', [$title, $message, $user]); }
-function admin_announcements(mysqli $conn): array { return db_rows($conn, 'SELECT * FROM announcements ORDER BY created_at DESC'); }
-
-function buyer_notifications(mysqli $conn, int $buyer): array {
-    $outbid = db_rows($conn, "SELECT l.id, l.title, 'outbid' type, 'You have been outbid on this auction.' message FROM bids b JOIN listings l ON l.id=b.listing_id WHERE b.buyer_id=? AND l.status='active' GROUP BY l.id HAVING MAX(b.amount) < l.current_bid", 'i', [$buyer]);
-    $endingSoon = db_rows($conn, "SELECT l.id, l.title, 'ending_soon' type, 'This auction ends within 1 hour.' message FROM watchlist w JOIN listings l ON l.id=w.listing_id WHERE w.buyer_id=? AND l.status='active' AND l.end_datetime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 HOUR)", 'i', [$buyer]);
-    $won = db_rows($conn, "SELECT l.id, l.title, 'won' type, 'You won this auction.' message FROM listings l JOIN bids b ON b.id=l.winner_bid_id WHERE b.buyer_id=? AND l.status='ended'", 'i', [$buyer]);
-    return array_merge($outbid, $endingSoon, $won);
+function auth_logout(): void {
+    session_unset();
+    session_destroy();
+    redirect_to('index.php?page=login');
 }
+
+function auth_profile(mysqli $conn): void {
+    require_login();
+    $user = user_find($conn, current_user_id());
+    $message = '';
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (isset($_POST['change_password'])) {
+            $newPassword = $_POST['new_password'] ?? '';
+            $confirmPassword = $_POST['confirm_password'] ?? '';
+
+            if ($newPassword !== $confirmPassword) {
+                $message = 'New passwords and confirm passwords must be same.';
+            } elseif (strlen($newPassword) < 8) {
+                $message = 'Password must be at least 8 characters.';
+            } else {
+                user_change_password($conn, current_user_id(), password_hash($newPassword, PASSWORD_DEFAULT));
+                $message = 'Password changed.';
+            }
+        } else {
+            $pic = $user['profile_pic'] ?? null;
+            $uploaded = upload_file('profile_pic', 'profiles', ['jpg', 'jpeg', 'png', 'webp']);
+            if ($uploaded) { $pic = $uploaded; }
+
+            user_update_profile($conn, current_user_id(), trim($_POST['name'] ?? ''), trim($_POST['phone'] ?? ''), trim($_POST['bio'] ?? ''), $pic);
+
+            $file_attempted = !empty($_FILES['profile_pic']['name']);
+            if ($file_attempted && !$uploaded) {
+                $message = 'Profile updated, but photo was not saved. Ensure it is JPG/PNG/WEBP and under 2MB.';
+            } else {
+                $message = 'Profile updated.';
+            }
+            $user = user_find($conn, current_user_id());
+        }
+    }
+
+    $reviews = review_received($conn, current_user_id());
+    render_view('auth/profile', compact('user', 'message', 'reviews'));
+}
+
+function buyer_browse(mysqli $conn): void {
+    listing_close_expired_auctions($conn);
+    $listings = listing_search($conn, $_GET['q'] ?? '', $_GET['category'] ?? '', $_GET['condition'] ?? '', $_GET['min'] ?? '', $_GET['max'] ?? '');
+    $categories = listing_categories($conn);
+    render_view('public/browse', compact('listings', 'categories'));
+}
+
+function buyer_auction(mysqli $conn): void {
+    $listing = listing_find($conn, (int)($_GET['id'] ?? 0));
+    $images = listing_images($conn, $listing['id'] ?? 0);
+    $bids = bid_history($conn, $listing['id'] ?? 0);
+    render_view('public/auction', compact('listing', 'images', 'bids'));
+}
+
+function buyer_dashboard(mysqli $conn): void {
+    require_role('buyer');
+    $listings = listing_search($conn);
+    $myBids = is_logged_in() ? bid_by_buyer($conn, current_user_id()) : [];
+    render_view('buyer/dashboard', compact('listings', 'myBids'));
+}
+
+function buyer_watchlist(mysqli $conn): void { require_role('buyer'); $rows = watchlist_rows($conn, current_user_id()); render_view('buyer/watchlist', compact('rows')); }
+function buyer_my_bids(mysqli $conn): void { require_role('buyer'); $rows = bid_by_buyer($conn, current_user_id()); render_view('buyer/my_bids', compact('rows')); }
+function buyer_won_auctions(mysqli $conn): void { require_login(); $rows = won_auctions($conn, current_user_id()); render_view('buyer/won', compact('rows')); }
+function buyer_spending(mysqli $conn): void { require_role('buyer'); $stats = bid_spending($conn, current_user_id()); render_view('buyer/spending', compact('stats')); }
+
+function buyer_review_seller(mysqli $conn): void {
+    require_login();
+    $message = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $rating = (int)$_POST['rating'];
+        if ($rating >= 1 && $rating <= 5 && trim($_POST['review_text']) !== '') {
+            review_create($conn, (int)$_POST['listing_id'], current_user_id(), (int)$_POST['seller_id'], $rating, trim($_POST['review_text']));
+            $message = 'Review submitted.';
+        } else {
+            $message = 'Valid rating and text required.';
+        }
+    }
+    render_view('buyer/review_seller', compact('message'));
+}
+
+function buyer_report_listing(mysqli $conn): void {
+    require_login();
+    $message = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (trim($_POST['reason']) && strlen(trim($_POST['description'])) >= 10) {
+            report_create_listing($conn, (int)$_POST['listing_id'], current_user_id(), trim($_POST['reason']), trim($_POST['description']));
+            $message = 'Report submitted.';
+        } else {
+            $message = 'Reason and 10 character description required.';
+        }
+    }
+    render_view('buyer/report_listing', compact('message'));
+}
+
+function buyer_report_user(mysqli $conn): void {
+    require_login();
+    $message = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (trim($_POST['reason']) && strlen(trim($_POST['description'])) >= 10) {
+            report_create_user($conn, current_user_id(), (int)$_POST['reported_user_id'], trim($_POST['reason']), trim($_POST['description']));
+            $message = 'User report submitted.';
+        } else {
+            $message = 'Reason and 10 character description required.';
+        }
+    }
+    render_view('buyer/report_user', compact('message'));
+}
+
+function listing_errors(array $p): array {
+    $errors = [];
+    if (trim($p['title'] ?? '') === '') { $errors[] = 'Title required'; }
+    if (trim($p['description'] ?? '') === '') { $errors[] = 'Description required'; }
+    if ((float)($p['starting_price'] ?? 0) <= 0) { $errors[] = 'Starting price must be positive'; }
+    if (!empty($p['reserve_price']) && (float)$p['reserve_price'] < (float)$p['starting_price']) { $errors[] = 'Reserve cannot be lower than starting price'; }
+    if (strtotime($p['end_datetime'] ?? '') < time() + 3600) { $errors[] = 'End date must be at least 1 hour in future'; }
+    return $errors;
+}
+
+function seller_dashboard(mysqli $conn): void {
+    require_role(['seller', 'buyer']);
+    $listings = current_role() === 'seller' ? listing_by_seller($conn, current_user_id()) : [];
+    $request = seller_request_by_user($conn, current_user_id());
+    render_view('seller/dashboard', compact('listings', 'request'));
+}
+
+function seller_verification(mysqli $conn): void {
+    require_login();
+    $request = seller_request_by_user($conn, current_user_id());
+    $message = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $doc = upload_file('id_document', 'documents', ['jpg', 'jpeg', 'png', 'pdf']);
+        if (!$doc || trim($_POST['motivation']) === '') {
+            $message = 'Motivation and valid ID document are required.';
+        } else {
+            seller_request_verification($conn, current_user_id(), trim($_POST['motivation']), $doc);
+            $message = 'Verification request submitted.';
+            $request = seller_request_by_user($conn, current_user_id());
+        }
+    }
+    render_view('seller/verification', compact('request', 'message'));
+}
+
+function seller_create_listing(mysqli $conn): void {
+    require_seller_verified();
+    $cats = listing_categories($conn);
+    $message = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $errors = listing_errors($_POST);
+        if (!$errors) {
+            $id = listing_create($conn, current_user_id(), (int)$_POST['category_id'], trim($_POST['title']), trim($_POST['description']), $_POST['condition'], (float)$_POST['starting_price'], ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price']), $_POST['end_datetime']);
+            for ($i = 0; $i < 5; $i++) {
+                if (!empty($_FILES['images']['name'][$i])) {
+                    $_FILES['single_image'] = ['name' => $_FILES['images']['name'][$i], 'type' => $_FILES['images']['type'][$i], 'tmp_name' => $_FILES['images']['tmp_name'][$i], 'error' => $_FILES['images']['error'][$i], 'size' => $_FILES['images']['size'][$i]];
+                    $path = upload_file('single_image', 'listings', ['jpg', 'jpeg', 'png', 'webp']);
+                    if ($path) { listing_add_image($conn, $id, $path, $i + 1); }
+                }
+            }
+            $message = 'Listing submitted for moderator review.';
+        } else {
+            $message = format_errors($errors);
+        }
+    }
+    render_view('seller/create_listing', compact('cats', 'message'));
+}
+
+function seller_listings(mysqli $conn): void { require_seller_verified(); $rows = listing_by_seller($conn, current_user_id()); render_view('seller/listings', compact('rows')); }
+function seller_edit_listing(mysqli $conn): void { require_seller_verified(); $listing = listing_find($conn, (int)$_GET['id']); $cats = listing_categories($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { listing_update_if_no_bids($conn, (int)$_GET['id'], current_user_id(), trim($_POST['title']), trim($_POST['description']), $_POST['condition'], (float)$_POST['starting_price'], ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price']), $_POST['end_datetime']); $message = 'Listing updated if it had zero bids.'; $listing = listing_find($conn, (int)$_GET['id']); } render_view('seller/edit_listing', compact('listing', 'cats', 'message')); }
+function seller_templates_page(mysqli $conn): void { require_seller_verified(); $cats = listing_categories($conn); if ($_SERVER['REQUEST_METHOD'] === 'POST') seller_create_template($conn, current_user_id(), trim($_POST['title']), trim($_POST['description']), (int)$_POST['category_id'], $_POST['condition'], (float)$_POST['starting_price']); $rows = seller_templates($conn, current_user_id()); render_view('seller/templates', compact('rows', 'cats')); }
+function seller_ended_page(mysqli $conn): void { require_seller_verified(); $rows = seller_ended($conn, current_user_id()); render_view('seller/ended', compact('rows')); }
+function seller_analytics_page(mysqli $conn): void { require_seller_verified(); $stats = seller_analytics($conn, current_user_id()); render_view('seller/analytics', compact('stats')); }
+function seller_reviews(mysqli $conn): void { require_seller_verified(); if ($_SERVER['REQUEST_METHOD'] === 'POST') review_respond($conn, (int)$_POST['review_id'], current_user_id(), trim($_POST['response_text'])); $rows = review_received($conn, current_user_id()); render_view('seller/reviews', compact('rows')); }
+function seller_relist(): void { require_seller_verified(); redirect_to('index.php?page=create_listing'); }
+
+// =====================================================
+// MODERATOR CONTROLLERS
+// =====================================================
+
+function moderator_dashboard_page(mysqli $conn): void {
+    require_role('moderator');
+    $stats = moderator_dashboard($conn);
+    render_view('moderator/dashboard', compact('stats'));
+}
+
+function moderator_pending_listings(mysqli $conn): void {
+    require_role('moderator');
+    $message = '';
+    $message_type = 'success-msg';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $listing_id = (int)($_POST['listing_id'] ?? 0);
+        $action = $_POST['action'] ?? '';
+        if ($action === 'approve') {
+            moderator_approve_listing($conn, $listing_id);
+            $message = 'Listing approved and set to active.';
+        } elseif ($action === 'reject') {
+            $reason = trim($_POST['rejection_reason'] ?? '');
+            if ($reason === '') {
+                $message = 'A rejection reason is required.';
+                $message_type = 'error';
+            } else {
+                moderator_reject_listing($conn, $listing_id, $reason);
+                $message = 'Listing rejected. Seller has been notified.';
+            }
+        }
+    }
+    $rows = listing_pending($conn);
+    render_view('moderator/pending', compact('rows', 'message', 'message_type'));
+}
+
+function moderator_active_listings_page(mysqli $conn): void {
+    require_role('moderator');
+    $message = '';
+    $message_type = 'success-msg';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $listing_id = (int)($_POST['listing_id'] ?? 0);
+        $reason = trim($_POST['suspension_reason'] ?? '');
+        if ($reason === '') {
+            $message = 'A suspension reason is required.';
+            $message_type = 'error';
+        } else {
+            moderator_suspend_listing($conn, $listing_id, $reason);
+            $message = 'Listing suspended and moved back to pending review.';
+        }
+    }
+    $keyword = trim($_GET['q'] ?? '');
+    $rows = moderator_active_listings($conn, $keyword);
+    render_view('moderator/active_listings', compact('rows', 'message', 'message_type', 'keyword'));
+}
+
+function moderator_listing_reports(mysqli $conn): void {
+    require_role('moderator');
+    $message = '';
+    $message_type = 'success-msg';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $report_id = (int)($_POST['report_id'] ?? 0);
+        $action = $_POST['action'] ?? '';
+        $note = trim($_POST['moderator_note'] ?? '');
+
+        if ($action === 'dismiss') {
+            report_update_listing($conn, $report_id, 'dismissed', $note);
+            $message = 'Report dismissed.';
+        } elseif ($action === 'suspend') {
+            $report = db_row($conn, 'SELECT listing_id FROM listing_reports WHERE id=?', 'i', [$report_id]);
+            if ($report) {
+                moderator_suspend_listing($conn, (int)$report['listing_id'], $note ?: 'Suspended following a report.');
+                report_update_listing($conn, $report_id, 'resolved', $note);
+                $message = 'Listing suspended and report resolved.';
+            }
+        } elseif ($action === 'warn_seller') {
+            $report = db_row($conn, 'SELECT lr.listing_id, l.seller_id FROM listing_reports lr JOIN listings l ON l.id=lr.listing_id WHERE lr.id=?', 'i', [$report_id]);
+            if ($report && $note !== '') {
+                moderator_warn($conn, (int)$report['seller_id'], current_user_id(), $note);
+                report_update_listing($conn, $report_id, 'resolved', $note);
+                $message = 'Warning issued to seller and report resolved.';
+            } else {
+                $message = 'A note/reason is required to issue a warning.';
+                $message_type = 'error';
+            }
+        }
+    }
+    $rows = report_listing_rows($conn);
+    render_view('moderator/listing_reports', compact('rows', 'message', 'message_type'));
+}
+
+function moderator_user_reports(mysqli $conn): void {
+    require_role('moderator');
+    $message = '';
+    $message_type = 'success-msg';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $report_id = (int)($_POST['report_id'] ?? 0);
+        $action = $_POST['action'] ?? '';
+        $note = trim($_POST['moderator_note'] ?? '');
+        $reported_user_id = (int)($_POST['reported_user_id'] ?? 0);
+
+        if ($action === 'dismiss') {
+            report_update_user($conn, $report_id, 'dismissed', $note);
+            $message = 'Report dismissed.';
+        } elseif ($action === 'warn') {
+            if ($note === '') {
+                $message = 'A warning reason is required.';
+                $message_type = 'error';
+            } else {
+                moderator_warn($conn, $reported_user_id, current_user_id(), $note);
+                report_update_user($conn, $report_id, 'resolved', $note);
+                $message = 'Warning issued to user and report resolved.';
+            }
+        } elseif ($action === 'escalate') {
+            report_update_user($conn, $report_id, 'escalated', $note ?: 'Escalated to admin for suspension review.');
+            $message = 'Report escalated to admin for suspension review.';
+        }
+    }
+    $rows = report_user_rows($conn);
+    render_view('moderator/user_reports', compact('rows', 'message', 'message_type'));
+}
+
+function moderator_warnings_page(mysqli $conn): void {
+    require_role('moderator');
+    $message = '';
+    $message_type = 'success-msg';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $user_id = (int)($_POST['user_id'] ?? 0);
+        $reason = trim($_POST['reason'] ?? '');
+        if ($user_id <= 0 || $reason === '') {
+            $message = 'User and warning reason are required.';
+            $message_type = 'error';
+        } else {
+            $target = user_find($conn, $user_id);
+            if (!$target || !in_array($target['role'], ['buyer', 'seller'], true)) {
+                $message = 'Only buyers and sellers can receive warnings.';
+                $message_type = 'error';
+            } else {
+                moderator_warn($conn, $user_id, current_user_id(), $reason);
+                $message = 'Warning issued to ' . htmlspecialchars($target['name']) . '.';
+            }
+        }
+    }
+    $rows = moderator_warnings($conn);
+    $users = moderator_users_list($conn, $_GET['q'] ?? '');
+    render_view('moderator/warnings', compact('rows', 'users', 'message', 'message_type'));
+}
+
+function moderator_categories(mysqli $conn): void {
+    require_role('moderator');
+    $message = '';
+    $message_type = 'success-msg';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = $_POST['action'] ?? '';
+        if ($action === 'add') {
+            $name = trim($_POST['name'] ?? '');
+            if ($name === '') { $message = 'Category name is required.'; $message_type = 'error'; }
+            else { moderator_add_category($conn, $name, trim($_POST['description'] ?? ''), (int)$_POST['parent_id'] ?: null); $message = 'Category added.'; }
+        } elseif ($action === 'rename') {
+            $name = trim($_POST['name'] ?? '');
+            if ($name === '') { $message = 'Category name is required.'; $message_type = 'error'; }
+            else { moderator_rename_category($conn, (int)$_POST['id'], $name, trim($_POST['description'] ?? '')); $message = 'Category renamed.'; }
+        } elseif ($action === 'merge') {
+            $src = (int)$_POST['source_id']; $dst = (int)$_POST['dest_id'];
+            if ($src === $dst || $src <= 0 || $dst <= 0) { $message = 'Select two different valid categories to merge.'; $message_type = 'error'; }
+            else { moderator_merge_category($conn, $src, $dst); $message = 'Categories merged.'; }
+        } elseif ($action === 'delete') {
+            $id = (int)$_POST['id'];
+            $deleted = moderator_delete_empty_category($conn, $id);
+            $message = $deleted ? 'Empty category deleted.' : 'Category could not be deleted — it may still contain listings.';
+            if (!$deleted) $message_type = 'error';
+        }
+    }
+    $rows = listing_categories($conn);
+    render_view('moderator/categories', compact('rows', 'message', 'message_type'));
+}
+
+function moderator_activity_report(mysqli $conn): void {
+    require_role('moderator');
+    $from = $_GET['from'] ?? date('Y-m-01');
+    $to = $_GET['to'] ?? date('Y-m-d');
+    $stats = moderator_activity_period($conn, $from, $to);
+    render_view('moderator/activity', compact('stats', 'from', 'to'));
+}
+
+function moderator_trust_score(mysqli $conn): void {
+    require_role('moderator');
+    $rows = moderator_trust_scores($conn);
+    render_view('moderator/trust', compact('rows'));
+}
+
+function moderator_trust_detail_page(mysqli $conn): void {
+    require_role('moderator');
+    $user_id = (int)($_GET['id'] ?? 0);
+    $user = moderator_user_detail($conn, $user_id);
+    if (!$user) { http_response_code(404); echo 'User not found'; exit; }
+    $warnings_history = moderator_user_warnings_history($conn, $user_id);
+    $reports_history = moderator_user_reports_history($conn, $user_id);
+    render_view('moderator/trust_detail', compact('user', 'warnings_history', 'reports_history'));
+}
+
+function moderator_keyword_abuse_page(mysqli $conn): void {
+    require_role('moderator');
+    $message = '';
+    $message_type = 'success-msg';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = $_POST['action'] ?? '';
+        if ($action === 'add_keyword') {
+            $kw = trim($_POST['keyword'] ?? '');
+            if ($kw === '') { $message = 'Keyword cannot be empty.'; $message_type = 'error'; }
+            else { moderator_add_keyword($conn, $kw); $message = 'Keyword added to watchlist.'; }
+        } elseif ($action === 'delete_keyword') {
+            moderator_delete_keyword($conn, (int)$_POST['keyword_id']);
+            $message = 'Keyword removed.';
+        }
+    }
+    $keywords = moderator_flagged_keywords($conn);
+    $flagged_listings = moderator_keyword_listings($conn);
+    render_view('moderator/keyword_abuse', compact('keywords', 'flagged_listings', 'message', 'message_type'));
+}
+
+function moderator_messaging_page(mysqli $conn): void {
+    require_role('moderator');
+    $message = '';
+    $message_type = 'success-msg';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $receiver_id = (int)($_POST['receiver_id'] ?? 0);
+        $listing_id = (int)($_POST['listing_id'] ?? 0) ?: null;
+        $msg_text = trim($_POST['message'] ?? '');
+        if ($receiver_id <= 0 || $msg_text === '') {
+            $message = 'Recipient and message are required.';
+            $message_type = 'error';
+        } else {
+            $target = user_find($conn, $receiver_id);
+            if (!$target || !in_array($target['role'], ['buyer', 'seller'], true)) {
+                $message = 'Messages can only be sent to buyers and sellers.';
+                $message_type = 'error';
+            } else {
+                moderator_send_message($conn, current_user_id(), $receiver_id, $listing_id, $msg_text);
+                $message = 'Message sent to ' . htmlspecialchars($target['name']) . '.';
+            }
+        }
+    }
+    $sent_messages = moderator_messages_sent($conn, current_user_id());
+    $users = moderator_users_list($conn, $_GET['q'] ?? '');
+    render_view('moderator/messaging', compact('sent_messages', 'users', 'message', 'message_type'));
+}
+
+// =====================================================
+// ADMIN CONTROLLERS
+// =====================================================
+
+function admin_dashboard(mysqli $conn): void { require_role('admin'); $stats = admin_dashboard_stats($conn); $userStats = user_stats($conn); render_view('admin/dashboard', compact('stats', 'userStats')); }
+function admin_seller_verifications(mysqli $conn): void { require_role('admin'); if ($_SERVER['REQUEST_METHOD'] === 'POST') admin_decide_verification($conn, (int)$_POST['request_id'], $_POST['status'], current_user_id(), trim($_POST['reason'] ?? '')); $rows = admin_verifications($conn, 'pending'); render_view('admin/verifications', compact('rows')); }
+function admin_users(mysqli $conn): void { require_role('admin'); if ($_SERVER['REQUEST_METHOD'] === 'POST') { if ($_POST['action'] === 'active' && (int)$_POST['id'] !== current_user_id()) user_set_active($conn, (int)$_POST['id'], (int)$_POST['is_active']); if ($_POST['action'] === 'role') user_set_role($conn, (int)$_POST['id'], $_POST['role']); if ($_POST['action'] === 'revoke') user_revoke_seller($conn, (int)$_POST['id']); } $rows = user_all($conn, $_GET['q'] ?? ''); render_view('admin/users', compact('rows')); }
+function admin_listings(mysqli $conn): void { require_role('admin'); if ($_SERVER['REQUEST_METHOD'] === 'POST') listing_set_status($conn, (int)$_POST['listing_id'], 'cancelled', trim($_POST['reason'])); $rows = listing_all_admin($conn, $_GET['status'] ?? ''); render_view('admin/listings', compact('rows')); }
+function admin_commissions(mysqli $conn): void { require_role('admin'); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { $rate = (float)$_POST['rate']; if ($rate >= 0 && $rate <= 100) { admin_set_default_rate($conn, $rate); $message = 'Commission rate saved.'; } else { $message = 'Rate must be between 0 and 100.'; } } render_view('admin/commissions', compact('message')); }
+function admin_financial_reports(mysqli $conn): void { require_role('admin'); $rows = admin_financials($conn); render_view('admin/financials', compact('rows')); }
+function admin_analytics(mysqli $conn): void { require_role('admin'); $rows = admin_bid_analytics($conn); render_view('admin/analytics', compact('rows')); }
+function admin_featured(mysqli $conn): void { require_role('admin'); if ($_SERVER['REQUEST_METHOD'] === 'POST') listing_set_featured($conn, (int)$_POST['listing_id'], (int)$_POST['featured']); $rows = listing_all_admin($conn); render_view('admin/featured', compact('rows')); }
+function admin_announcements_page(mysqli $conn): void { require_role('admin'); if ($_SERVER['REQUEST_METHOD'] === 'POST') admin_announcement_add($conn, trim($_POST['title']), trim($_POST['message']), current_user_id()); $rows = admin_announcements($conn); render_view('admin/announcements', compact('rows')); }
 ?>
