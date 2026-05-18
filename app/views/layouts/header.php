@@ -20,12 +20,10 @@
 <nav class="navbar">
     <a class="brand" href="index.php">Online Auction</a>
     <div class="navlinks">
-        <?php if (is_logged_in() && (current_role()==='admin' || current_role()==='moderator')): ?>
-            <button class="dark-mode-toggle top-dark-toggle" onclick="toggleDarkMode()" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
-                <i class="fa-solid fa-moon"></i>
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            </button>
-        <?php endif; ?>
+        <button class="dark-mode-toggle top-dark-toggle" onclick="toggleDarkMode()" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
+            <i class="fa-solid fa-moon"></i>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </button>
         <a href="index.php?page=browse">Browse</a>
         <?php if (is_logged_in()): ?>
             <a href="index.php?page=<?= e(current_role()) ?>_dashboard">Dashboard</a>
