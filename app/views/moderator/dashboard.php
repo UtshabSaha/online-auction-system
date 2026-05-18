@@ -31,5 +31,9 @@
         <a href="index.php?page=mod_messaging" class="btn secondary" style="width:auto;padding:9px 18px;">Send Message</a>
         <a href="index.php?page=categories" class="btn secondary" style="width:auto;padding:9px 18px;">Manage Categories</a>
         <a href="index.php?page=moderation_report" class="btn secondary" style="width:auto;padding:9px 18px;">Activity Report</a>
+<<<<<<< HEAD
     </div> 
+=======
+    </div>
+>>>>>>> admin/features
 </div>
