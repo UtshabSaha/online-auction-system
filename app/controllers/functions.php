@@ -87,7 +87,13 @@ function auth_profile(mysqli $conn): void {
             if ($uploaded) { $pic = $uploaded; }
 
             user_update_profile($conn, current_user_id(), trim($_POST['name'] ?? ''), trim($_POST['phone'] ?? ''), trim($_POST['bio'] ?? ''), $pic);
-            $message = 'Profile updated.';
+
+            $file_attempted = !empty($_FILES['profile_pic']['name']);
+            if ($file_attempted && !$uploaded) {
+                $message = 'Profile updated, but photo was not saved. Ensure it is JPG/PNG/WEBP and under 2MB.';
+            } else {
+                $message = 'Profile updated.';
+            }
             $user = user_find($conn, current_user_id());
         }
     }
@@ -112,17 +118,27 @@ function buyer_auction(mysqli $conn): void {
 
 function buyer_dashboard(mysqli $conn): void {
     require_role('buyer');
+<<<<<<< HEAD
     listing_close_expired_auctions($conn);
+=======
+>>>>>>> origin/admin/features
     $listings = listing_search($conn);
     $myBids = bid_by_buyer($conn, current_user_id());
     $notifications = buyer_notifications($conn, current_user_id());
     render_view('buyer/dashboard', compact('listings', 'myBids', 'notifications'));
 }
 
+<<<<<<< HEAD
 function buyer_watchlist(mysqli $conn): void { require_role('buyer'); listing_close_expired_auctions($conn); $rows = watchlist_rows($conn, current_user_id()); render_view('buyer/watchlist', compact('rows')); }
 function buyer_my_bids(mysqli $conn): void { require_role('buyer'); listing_close_expired_auctions($conn); $rows = bid_by_buyer($conn, current_user_id()); render_view('buyer/my_bids', compact('rows')); }
 function buyer_won_auctions(mysqli $conn): void { require_role('buyer'); listing_close_expired_auctions($conn); $rows = won_auctions($conn, current_user_id()); render_view('buyer/won', compact('rows')); }
 function buyer_spending(mysqli $conn): void { require_role('buyer'); listing_close_expired_auctions($conn); $stats = bid_spending($conn, current_user_id()); render_view('buyer/spending', compact('stats')); }
+=======
+function buyer_watchlist(mysqli $conn): void { require_role('buyer'); $rows = watchlist_rows($conn, current_user_id()); render_view('buyer/watchlist', compact('rows')); }
+function buyer_my_bids(mysqli $conn): void { require_role('buyer'); $rows = bid_by_buyer($conn, current_user_id()); render_view('buyer/my_bids', compact('rows')); }
+function buyer_won_auctions(mysqli $conn): void { require_login(); $rows = won_auctions($conn, current_user_id()); render_view('buyer/won', compact('rows')); }
+function buyer_spending(mysqli $conn): void { require_role('buyer'); $stats = bid_spending($conn, current_user_id()); render_view('buyer/spending', compact('stats')); }
+>>>>>>> origin/admin/features
 
 function buyer_review_seller(mysqli $conn): void {
     require_role('buyer');
