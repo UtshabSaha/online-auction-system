@@ -163,6 +163,7 @@ CREATE TABLE auction_templates (
     category_id INT NOT NULL,
     `condition` ENUM('new','like_new','good','fair') NOT NULL,
     starting_price DECIMAL(10,2) NOT NULL,
+    reserve_price DECIMAL(10,2) NULL,
     FOREIGN KEY (seller_id) REFERENCES users(id),
     FOREIGN KEY (category_id) REFERENCES categories(id)
 ) ENGINE=InnoDB;
