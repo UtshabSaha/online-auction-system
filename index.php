@@ -6,7 +6,7 @@ require_once __DIR__ . '/app/controllers/functions.php';
 $page = $_GET['page'] ?? 'home';
 
 switch ($page) {
-    case 'home': buyer_browse($conn); break;
+    case 'home': auth_login($conn); break;
     case 'login': auth_login($conn); break;
     case 'register': auth_register($conn); break;
     case 'logout': auth_logout(); break;

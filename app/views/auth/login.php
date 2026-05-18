@@ -1,20 +1,31 @@
-<div class="auth-panel">
-    <h1>Login</h1>
-    <p>Use your email and password to open the correct role dashboard.</p>
+<div class="auth-panel auth-landing">
+    <div class="auth-copy">
+        <span class="landing-kicker">Timed online auctions</span>
+        <h1>Auction Hub</h1>
+        <p>Login to manage bids, listings, moderation, and admin tools from the right dashboard.</p>
+        <div class="landing-highlights">
+            <span>Live bidding</span>
+            <span>Verified sellers</span>
+            <span>Secure accounts</span>
+        </div>
+    </div>
 
-    <?php if (!empty($error)): ?>
-        <div class="alert error"><?= e($error) ?></div>
-    <?php endif; ?>
+    <div class="login-card">
+        <h2>Login</h2>
+        <?php if (!empty($error)): ?>
+            <div class="alert error"><?= e($error) ?></div>
+        <?php endif; ?>
 
-    <form method="post" action="index.php?page=login" class="form-card">
-        <label>Email</label>
-        <input type="email" name="email" value="<?= e($old_email ?? '') ?>" required>
+        <form method="post" action="index.php?page=login" class="form-card">
+            <label>Email</label>
+            <input type="email" name="email" value="<?= e($old_email ?? '') ?>" required>
 
-        <label>Password</label>
-        <input type="password" name="password" required>
+            <label>Password</label>
+            <input type="password" name="password" required>
 
-        <button type="submit">Login</button>
-    </form>
+            <button type="submit">Login</button>
+        </form>
 
-    <p class="small-link">No account yet? <a href="index.php?page=register">Register as buyer</a></p>
+        <p class="small-link">No account yet? <a href="index.php?page=register">Click here to register</a></p>
+    </div>
 </div>
