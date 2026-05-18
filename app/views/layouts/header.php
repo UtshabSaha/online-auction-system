@@ -69,6 +69,13 @@
         <?php nav_link('featured', 'Featured Listings', $current_page); ?>
         <?php nav_link('announcements', 'Announcements', $current_page); ?>
     <?php endif; ?>
+    <?php if (current_role()==='admin' || current_role()==='moderator'): ?>
+        <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">
+            <i class="fa-solid fa-moon"></i>
+            <span style="flex:1">Dark Mode</span>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </button>
+    <?php endif; ?>
 </aside>
 <section class="content">
 <?php else: ?>

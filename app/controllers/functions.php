@@ -229,7 +229,40 @@ function seller_create_listing(mysqli $conn): void {
 }
 
 function seller_listings(mysqli $conn): void { require_seller_verified(); $rows = listing_by_seller($conn, current_user_id()); render_view('seller/listings', compact('rows')); }
-function seller_edit_listing(mysqli $conn): void { require_seller_verified(); $listing = listing_find($conn, (int)$_GET['id']); $cats = listing_categories($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { listing_update_if_no_bids($conn, (int)$_GET['id'], current_user_id(), trim($_POST['title']), trim($_POST['description']), $_POST['condition'], (float)$_POST['starting_price'], ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price']), $_POST['end_datetime']); $message = 'Listing updated if it had zero bids.'; $listing = listing_find($conn, (int)$_GET['id']); } render_view('seller/edit_listing', compact('listing', 'cats', 'message')); }
+function seller_edit_listing(mysqli $conn): void {
+    require_seller_verified();
+    $id = (int)$_GET['id'];
+    $listing = listing_find($conn, $id);
+    $cats    = listing_categories($conn);
+    $images  = listing_images($conn, $id);
+    $message = '';
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Save core fields (only allowed when listing has zero bids)
+        listing_update_if_no_bids(
+            $conn, $id, current_user_id(),
+            trim($_POST['title']),
+            trim($_POST['description']),
+            $_POST['condition'],
+            (float)$_POST['starting_price'],
+            ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price']),
+            $_POST['end_datetime']
+        );
+
+        // FIX: handle optional new image upload
+        $imagePath = upload_file('single_image', 'listings', ['jpg', 'jpeg', 'png', 'webp']);
+        if ($imagePath) {
+            $nextOrder = count($images) + 1;
+            listing_add_image($conn, $id, $imagePath, $nextOrder);
+        }
+
+        $message  = 'Listing updated successfully.';
+        $listing  = listing_find($conn, $id);
+        $images   = listing_images($conn, $id);
+    }
+
+    render_view('seller/edit_listing', compact('listing', 'cats', 'images', 'message'));
+}
 function seller_templates_page(mysqli $conn): void { require_seller_verified(); $cats = listing_categories($conn); if ($_SERVER['REQUEST_METHOD'] === 'POST') seller_create_template($conn, current_user_id(), trim($_POST['title']), trim($_POST['description']), (int)$_POST['category_id'], $_POST['condition'], (float)$_POST['starting_price']); $rows = seller_templates($conn, current_user_id()); render_view('seller/templates', compact('rows', 'cats')); }
 function seller_ended_page(mysqli $conn): void { require_seller_verified(); $rows = seller_ended($conn, current_user_id()); render_view('seller/ended', compact('rows')); }
 function seller_analytics_page(mysqli $conn): void { require_seller_verified(); $stats = seller_analytics($conn, current_user_id()); render_view('seller/analytics', compact('stats')); }
