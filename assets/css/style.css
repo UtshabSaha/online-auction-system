@@ -225,3 +225,14 @@ body.dark-mode .dark-mode-toggle:hover { background: #1e293b !important; }
 body.dark-mode .dark-mode-toggle .toggle-track { background: #2563eb; }
 body.dark-mode .dark-mode-toggle .toggle-thumb { transform: translateX(20px); }
 .dark-mode-toggle i { font-size: 15px; color: #f59e0b; }
+
+.top-dark-toggle {
+    display: inline-flex;
+    vertical-align: middle;
+    margin: 0 14px 0 0;
+    padding: 2px;
+    color: #fff;
+}
+.top-dark-toggle:hover { background: rgba(255,255,255,0.14); }
+body.dark-mode .top-dark-toggle:hover { background: rgba(255,255,255,0.14) !important; }
+.navlinks .top-dark-toggle + a { margin-left: 0; }
