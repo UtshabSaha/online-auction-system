@@ -79,7 +79,7 @@ function updateCountdowns(){
 function initCreateListingAjax(){
     const form = qs('createListingForm');
     if(!form) return;
-    const message = qs('createListingMessage'); 
+    const message = qs('createListingMessage') ;      
     const button = qs('createListingButton');
     form.addEventListener('submit', function(event){
         event.preventDefault();
