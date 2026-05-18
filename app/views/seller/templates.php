@@ -2,6 +2,7 @@
     <h1>Listing Templates</h1>
     <?php if(!empty($message)): ?><div class="alert"><?= e($message) ?></div><?php endif; ?>
     <form method="post">
+        
         <label>Title</label>
         <input name="title" placeholder="Title" required>
         <label>Description</label>

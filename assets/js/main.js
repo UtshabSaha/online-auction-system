@@ -81,7 +81,7 @@ function initCreateListingAjax(){
     if(!form) return;
     const message = qs('createListingMessage') ;      
     const button = qs('createListingButton');
-    form.addEventListener('submit', function(event){
+    form.addEventListener('submit', function(event){  
         event.preventDefault();
         if(button){ button.disabled = true; button.innerText = 'Submitting...'; }
         fetch(form.action || window.location.href, {
