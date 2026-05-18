@@ -155,14 +155,7 @@ CREATE TABLE warnings (
     FOREIGN KEY (issued_by) REFERENCES users(id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE auction_templates (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    seller_id INT NOT NULL,
-    title VARCHAR(200) NOT NULL,
-    description TEXT NOT NULL,
-    category_id INT NOT NULL,
-    `condition` ENUM('new','like_new','good','fair') NOT NULL,
-    starting_price DECIMAL(10,2) NOT NULL,
+
     reserve_price DECIMAL(10,2) NULL,
     FOREIGN KEY (seller_id) REFERENCES users(id),
     FOREIGN KEY (category_id) REFERENCES categories(id)
@@ -229,9 +222,9 @@ INSERT INTO listings (seller_id,category_id,title,description,`condition`,starti
 (3,2,'Database Systems Book','Clean copy for university courses.','good',500,NULL,500,DATE_ADD(NOW(), INTERVAL 1 DAY),'pending_review',0);
 
 INSERT INTO listing_images (listing_id,image_path,display_order) VALUES
-(1,'assets/images/auction-placeholder.png',1),
-(2,'assets/images/auction-placeholder.png',1),
-(3,'assets/images/auction-placeholder.png',1);
+(1,'assets/images/no-image.png',1),
+(2,'assets/images/no-image.png',1),
+(3,'assets/images/no-image.png',1);
 
 INSERT INTO commission_rates (seller_id, rate, is_default) VALUES (NULL, 5.00, 1);
 INSERT INTO announcements (title,message,posted_by) VALUES ('Welcome','Welcome to the Online Auction System demo.',1);

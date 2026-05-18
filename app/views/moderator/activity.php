@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-<h1>Moderation Activity Report</h1><div class="grid"><div class="card"><div class="stat"><?= e($stats['reviewed']) ?></div><p>Listings reviewed</p></div><div class="card"><div class="stat"><?= e($stats['approved']) ?></div><p>Approved listings</p></div><div class="card"><div class="stat"><?= e($stats['listing_reports'] + $stats['user_reports']) ?></div><p>Reports processed</p></div><div class="card"><div class="stat"><?= e($stats['warnings']) ?></div><p>Warnings issued</p></div></div>
-=======
 <?php
 $total_reports = ($stats['listing_reports_done'] ?? 0) + ($stats['user_reports_done'] ?? 0);
 $approval_rate = ($stats['reviewed'] ?? 0) > 0 ? round(($stats['approved'] / $stats['reviewed']) * 100, 1) : 0;
@@ -77,4 +74,3 @@ $approval_rate = ($stats['reviewed'] ?? 0) > 0 ? round(($stats['approved'] / $st
         <tr><td>Warnings Issued</td><td><?= (int)($stats['warnings_issued'] ?? 0) ?></td></tr>
     </table>
 </div>
->>>>>>> origin/moderator/features

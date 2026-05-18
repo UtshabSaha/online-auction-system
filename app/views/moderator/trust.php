@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-<div class="card"><h1>User Trust Score</h1><table><tr><th>User</th><th>Role</th><th>Reputation</th><th>Warnings</th><th>Reports</th></tr><?php foreach($rows as $r): ?><tr><td><?= e($r['name']) ?></td><td><?= e($r['role']) ?></td><td><?= e($r['reputation_score']) ?></td><td><?= e($r['warnings']) ?></td><td><?= e($r['reports']) ?></td></tr><?php endforeach; ?></table></div>
-=======
 <div class="card">
     <h1>User Trust Scores</h1>
     <p style="color:#6b7280;font-size:13px;margin-top:4px;">Overview of buyer and seller trust profiles. Click a user to view their full warning and report history.</p>
@@ -52,4 +49,3 @@
     </table>
     <?php endif; ?>
 </div>
->>>>>>> origin/moderator/features

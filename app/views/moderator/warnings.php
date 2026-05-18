@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-<div class="card"><h1>Warnings</h1><form method="post"><input type="number" name="user_id" placeholder="User ID" required><textarea name="reason" placeholder="Warning reason" required></textarea><button>Issue Warning</button></form><table><tr><th>User</th><th>Issued By</th><th>Reason</th><th>Date</th></tr><?php foreach($rows as $r): ?><tr><td><?= e($r['user_name']) ?></td><td><?= e($r['issued_by_name']) ?></td><td><?= e($r['reason']) ?></td><td><?= e($r['created_at']) ?></td></tr><?php endforeach; ?></table></div>
-=======
 <?php if ($message): ?>
     <div class="alert <?= e($message_type) ?>"><?= e($message) ?></div>
 <?php endif; ?>
@@ -71,4 +68,3 @@
     </table>
     <?php endif; ?>
 </div>
->>>>>>> origin/moderator/features

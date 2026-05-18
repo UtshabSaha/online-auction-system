@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-<h1>Moderator Dashboard</h1><div class="grid"><div class="card"><div class="stat"><?= e($stats['pending_listings']) ?></div><p>Pending listings</p></div><div class="card"><div class="stat"><?= e($stats['listing_reports']) ?></div><p>Open listing reports</p></div><div class="card"><div class="stat"><?= e($stats['user_reports']) ?></div><p>Open user reports</p></div><div class="card"><div class="stat"><?= e($stats['warnings_week']) ?></div><p>Warnings this week</p></div></div>
-=======
 <h1>Moderator Dashboard</h1>
 
 <div class="grid">
@@ -36,4 +33,3 @@
         <a href="index.php?page=moderation_report" class="btn secondary" style="width:auto;padding:9px 18px;">Activity Report</a>
     </div> 
 </div>
->>>>>>> origin/moderator/features

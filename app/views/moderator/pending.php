@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-<div class="card"><h1>Pending Listing Reviews</h1><table><tr><th>Title</th><th>Seller</th><th>Category</th><th>Action</th></tr><?php foreach($rows as $r): ?><tr><td><?= e($r['title']) ?></td><td><?= e($r['seller_name']) ?></td><td><?= e($r['category_name']) ?></td><td><button onclick="moderateListing(<?= $r['id'] ?>,'active')">Approve AJAX</button><button class="danger" onclick="moderateListing(<?= $r['id'] ?>,'rejected')">Reject AJAX</button></td></tr><?php endforeach; ?></table></div>
-=======
 <?php if ($message): ?>
     <div class="alert <?= e($message_type) ?>"><?= e($message) ?></div>
 <?php endif; ?>
@@ -67,4 +64,3 @@
         <?php endforeach; ?>
     <?php endif; ?>
 </div>
->>>>>>> origin/moderator/features

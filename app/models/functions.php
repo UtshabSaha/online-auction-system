@@ -150,13 +150,9 @@ function review_respond(mysqli $conn, int $id, int $user, string $text): bool { 
 
 function report_create_listing(mysqli $conn, int $listing, int $reporter, string $reason, string $description): bool { return db_execute($conn, 'INSERT INTO listing_reports (listing_id,reporter_id,reason,description) VALUES (?,?,?,?)', 'iiss', [$listing, $reporter, $reason, $description]); }
 function report_create_user(mysqli $conn, int $reporter, int $reported, string $reason, string $description): bool { return db_execute($conn, 'INSERT INTO user_reports (reporter_id,reported_user_id,reason,description) VALUES (?,?,?,?)', 'iiss', [$reporter, $reported, $reason, $description]); }
-<<<<<<< HEAD
 function buyer_reportable_listings(mysqli $conn): array { return db_rows($conn, "SELECT id, title FROM listings WHERE status IN ('active','ended') ORDER BY created_at DESC"); }
 function buyer_reportable_users(mysqli $conn, int $currentUser): array { return db_rows($conn, 'SELECT id, name, role FROM users WHERE id<>? AND is_active=1 ORDER BY name', 'i', [$currentUser]); }
-function report_listing_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, l.title, u.name reporter_name FROM listing_reports r JOIN listings l ON l.id=r.listing_id JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC'); }
-=======
 function report_listing_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, l.title, l.seller_id, l.status listing_status, u.name reporter_name FROM listing_reports r JOIN listings l ON l.id=r.listing_id JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC'); }
->>>>>>> origin/moderator/features
 function report_user_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, a.name reporter_name, b.name reported_name FROM user_reports r JOIN users a ON a.id=r.reporter_id JOIN users b ON b.id=r.reported_user_id ORDER BY r.created_at DESC'); }
 function report_update_listing(mysqli $conn, int $id, string $status, string $note): bool { return db_execute($conn, 'UPDATE listing_reports SET status=?, moderator_note=? WHERE id=?', 'ssi', [$status, $note, $id]); }
 function report_update_user(mysqli $conn, int $id, string $status, string $note): bool { return db_execute($conn, 'UPDATE user_reports SET status=?, moderator_note=? WHERE id=?', 'ssi', [$status, $note, $id]); }
