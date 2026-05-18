@@ -258,9 +258,15 @@ function seller_create_listing(mysqli $conn): void {
                 seller_create_template($conn, current_user_id(), trim($_POST['title']), trim($_POST['description']), (int)$_POST['category_id'], $_POST['condition'], (float)$_POST['starting_price']);
             }
             $message = 'Listing submitted for moderator review.';
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
+                json_response(['success' => true, 'message' => $message]);
+            }
             $old = ['title' => '', 'description' => '', 'category_id' => '', 'condition' => 'good', 'starting_price' => '', 'reserve_price' => '', 'end_datetime' => ''];
         } else {
             $message = format_errors($errors);
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
+                json_response(['success' => false, 'message' => $message]);
+            }
         }
     }
     render_view('seller/create_listing', compact('cats', 'message', 'old'));

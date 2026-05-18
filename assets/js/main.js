@@ -70,6 +70,29 @@ function formatCountdown(endTime){
 function updateCountdowns(){
     document.querySelectorAll('[data-countdown]').forEach(function(el){ el.innerText = formatCountdown(el.dataset.countdown); });
 }
+function initCreateListingAjax(){
+    const form = qs('createListingForm');
+    if(!form) return;
+    const message = qs('createListingMessage');
+    const button = qs('createListingButton');
+    form.addEventListener('submit', function(event){
+        event.preventDefault();
+        if(button){ button.disabled = true; button.innerText = 'Submitting...'; }
+        fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(function(response){ return response.json(); }).then(function(res){
+            if(message){ message.innerHTML = '<div class="alert '+(res.success ? 'success-msg' : 'error')+'">'+escapeHtml(res.message || '')+'</div>'; }
+            if(res.success){ form.reset(); }
+        }).catch(function(){
+            if(message){ message.innerHTML = '<div class="alert error">Could not submit listing. Please try again.</div>'; }
+        }).finally(function(){
+            if(button){ button.disabled = false; button.innerText = 'Create Listing'; }
+        });
+    });
+}
 setInterval(updateCountdowns, 1000);
 updateCountdowns();
+initCreateListingAjax();
 setInterval(function(){ document.querySelectorAll('[data-refresh-bids]').forEach(el=>refreshBids(el.dataset.refreshBids)); }, 5000);
