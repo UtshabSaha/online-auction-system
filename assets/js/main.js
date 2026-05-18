@@ -38,7 +38,7 @@ function refreshBids(listingId){
     });
 }
 function listingCard(l){
-    const img = l.image_path || 'assets/images/no-image.png';
+    const img = l.image_path || 'assets/images/auction-placeholder.png';
     return '<div class="card auction-card"><img src="'+escapeHtml(img)+'" alt=""><h3>'+escapeHtml(l.title)+'</h3><p>'+escapeHtml(l.category_name)+' - '+escapeHtml(l.condition)+'</p><p><strong>Current bid:</strong> '+escapeHtml(l.current_bid)+'</p><p><strong>Time left:</strong> <span class="countdown" data-countdown="'+escapeHtml(l.end_datetime)+'">'+escapeHtml(l.end_datetime)+'</span></p><a class="btn" href="index.php?page=auction&id='+escapeHtml(l.id)+'">View Auction</a></div>';
 }
 function searchAuctions(){

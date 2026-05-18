@@ -228,9 +228,9 @@ INSERT INTO listings (seller_id,category_id,title,description,`condition`,starti
 (3,2,'Database Systems Book','Clean copy for university courses.','good',500,NULL,500,DATE_ADD(NOW(), INTERVAL 1 DAY),'pending_review',0);
 
 INSERT INTO listing_images (listing_id,image_path,display_order) VALUES
-(1,'assets/images/no-image.png',1),
-(2,'assets/images/no-image.png',1),
-(3,'assets/images/no-image.png',1);
+(1,'assets/images/auction-placeholder.png',1),
+(2,'assets/images/auction-placeholder.png',1),
+(3,'assets/images/auction-placeholder.png',1);
 
 INSERT INTO commission_rates (seller_id, rate, is_default) VALUES (NULL, 5.00, 1);
 INSERT INTO announcements (title,message,posted_by) VALUES ('Welcome','Welcome to the Online Auction System demo.',1);

@@ -39,6 +39,8 @@
         <a href="index.php?page=create_listing">Create Listing</a>
         <a href="index.php?page=seller_listings">My Listings</a>
         <a href="index.php?page=seller_templates">Templates</a>
+        <a href="index.php?page=seller_ended">Ended Auctions</a>
+        <a href="index.php?page=seller_reviews">Reviews</a>
         <a href="index.php?page=seller_analytics">Analytics</a>
     <?php endif; ?>
     <?php if (current_role()==='moderator'): ?>

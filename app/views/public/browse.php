@@ -34,7 +34,7 @@
 <div id="auctionGrid" class="grid">
     <?php foreach ($listings as $l): ?>
         <div class="card auction-card">
-            <img src="<?= e($l['image_path'] ?: 'assets/images/no-image.png') ?>" alt="Auction Image">
+            <img src="<?= e($l['image_path'] ?: 'assets/images/auction-placeholder.png') ?>" alt="Auction Image">
             <h3><?= e($l['title']) ?></h3>
             <p><?= e($l['category_name']) ?> - <?= e($l['condition']) ?></p>
             <p><strong>Current Bid:</strong> <?= e($l['current_bid']) ?></p>

@@ -226,7 +226,24 @@ function seller_create_listing(mysqli $conn): void {
     require_seller_verified();
     $cats = listing_categories($conn);
     $message = '';
+    $old = ['title' => '', 'description' => '', 'category_id' => '', 'condition' => 'good', 'starting_price' => '', 'reserve_price' => '', 'end_datetime' => ''];
+
+    if (!empty($_GET['template_id'])) {
+        $template = seller_template_find($conn, (int)$_GET['template_id'], current_user_id());
+        if ($template) { $old = array_merge($old, $template); }
+    }
+    if (!empty($_GET['relist_id'])) {
+        $source = seller_relist_source($conn, (int)$_GET['relist_id'], current_user_id());
+        if ($source) {
+            $old = array_merge($old, $source);
+            $old['starting_price'] = max(1, round((float)$source['starting_price'] * 0.90, 2));
+            $old['reserve_price'] = '';
+            $old['end_datetime'] = '';
+        }
+    }
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $old = array_merge($old, $_POST);
         $errors = listing_errors($_POST);
         if (!$errors) {
             $id = listing_create($conn, current_user_id(), (int)$_POST['category_id'], trim($_POST['title']), trim($_POST['description']), $_POST['condition'], (float)$_POST['starting_price'], ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price']), $_POST['end_datetime']);
@@ -237,21 +254,26 @@ function seller_create_listing(mysqli $conn): void {
                     if ($path) { listing_add_image($conn, $id, $path, $i + 1); }
                 }
             }
+            if (!empty($_POST['save_template'])) {
+                seller_create_template($conn, current_user_id(), trim($_POST['title']), trim($_POST['description']), (int)$_POST['category_id'], $_POST['condition'], (float)$_POST['starting_price']);
+            }
             $message = 'Listing submitted for moderator review.';
+            $old = ['title' => '', 'description' => '', 'category_id' => '', 'condition' => 'good', 'starting_price' => '', 'reserve_price' => '', 'end_datetime' => ''];
         } else {
             $message = format_errors($errors);
         }
     }
-    render_view('seller/create_listing', compact('cats', 'message'));
+    render_view('seller/create_listing', compact('cats', 'message', 'old'));
 }
 
-function seller_listings(mysqli $conn): void { require_seller_verified(); $rows = listing_by_seller($conn, current_user_id()); render_view('seller/listings', compact('rows')); }
-function seller_edit_listing(mysqli $conn): void { require_seller_verified(); $listing = listing_find($conn, (int)$_GET['id']); $cats = listing_categories($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { listing_update_if_no_bids($conn, (int)$_GET['id'], current_user_id(), trim($_POST['title']), trim($_POST['description']), $_POST['condition'], (float)$_POST['starting_price'], ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price']), $_POST['end_datetime']); $message = 'Listing updated if it had zero bids.'; $listing = listing_find($conn, (int)$_GET['id']); } render_view('seller/edit_listing', compact('listing', 'cats', 'message')); }
-function seller_templates_page(mysqli $conn): void { require_seller_verified(); $cats = listing_categories($conn); if ($_SERVER['REQUEST_METHOD'] === 'POST') seller_create_template($conn, current_user_id(), trim($_POST['title']), trim($_POST['description']), (int)$_POST['category_id'], $_POST['condition'], (float)$_POST['starting_price']); $rows = seller_templates($conn, current_user_id()); render_view('seller/templates', compact('rows', 'cats')); }
-function seller_ended_page(mysqli $conn): void { require_seller_verified(); $rows = seller_ended($conn, current_user_id()); render_view('seller/ended', compact('rows')); }
-function seller_analytics_page(mysqli $conn): void { require_seller_verified(); $stats = seller_analytics($conn, current_user_id()); render_view('seller/analytics', compact('stats')); }
-function seller_reviews(mysqli $conn): void { require_seller_verified(); if ($_SERVER['REQUEST_METHOD'] === 'POST') review_respond($conn, (int)$_POST['review_id'], current_user_id(), trim($_POST['response_text'])); $rows = review_received($conn, current_user_id()); render_view('seller/reviews', compact('rows')); }
-function seller_relist(): void { require_seller_verified(); redirect_to('index.php?page=create_listing'); }
+function seller_listings(mysqli $conn): void { require_seller_verified(); listing_close_expired_auctions($conn); $rows = listing_by_seller($conn, current_user_id()); render_view('seller/listings', compact('rows')); }
+function seller_edit_listing(mysqli $conn): void { require_seller_verified(); $listing = listing_find($conn, (int)$_GET['id']); if (!$listing || (int)$listing['seller_id'] !== current_user_id()) { http_response_code(404); echo 'Listing not found'; return; } $cats = listing_categories($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { $errors = listing_errors($_POST); if ($errors) { $message = format_errors($errors); } else { $ok = listing_update_if_no_bids($conn, (int)$_GET['id'], current_user_id(), (int)$_POST['category_id'], trim($_POST['title']), trim($_POST['description']), $_POST['condition'], (float)$_POST['starting_price'], ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price']), $_POST['end_datetime']); $message = $ok ? 'Listing updated.' : 'Only your zero-bid listings can be edited.'; $listing = listing_find($conn, (int)$_GET['id']); } } render_view('seller/edit_listing', compact('listing', 'cats', 'message')); }
+function seller_cancel_listing(mysqli $conn): void { require_seller_verified(); if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirect_to('index.php?page=seller_listings'); } $reason = trim($_POST['reason'] ?? 'Cancelled by seller before any bid.'); listing_cancel_if_no_bids($conn, (int)$_POST['listing_id'], current_user_id(), $reason); redirect_to('index.php?page=seller_listings'); }
+function seller_templates_page(mysqli $conn): void { require_seller_verified(); $cats = listing_categories($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { if (trim($_POST['title'] ?? '') === '' || (float)($_POST['starting_price'] ?? 0) <= 0) { $message = 'Template title and positive starting price required.'; } else { seller_create_template($conn, current_user_id(), trim($_POST['title']), trim($_POST['description']), (int)$_POST['category_id'], $_POST['condition'], (float)$_POST['starting_price']); $message = 'Template saved.'; } } $rows = seller_templates($conn, current_user_id()); render_view('seller/templates', compact('rows', 'cats', 'message')); }
+function seller_ended_page(mysqli $conn): void { require_seller_verified(); listing_close_expired_auctions($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['arrangement_note'])) { $note = trim($_POST['arrangement_note']); if ($note !== '') { seller_note_buyer($conn, (int)$_POST['listing_id'], current_user_id(), (int)$_POST['buyer_id'], $note); $message = 'Arrangement note saved.'; } } $rows = seller_ended($conn, current_user_id()); render_view('seller/ended', compact('rows', 'message')); }
+function seller_analytics_page(mysqli $conn): void { require_seller_verified(); listing_close_expired_auctions($conn); $stats = seller_analytics($conn, current_user_id()); $trend = seller_sales_trend($conn, current_user_id()); render_view('seller/analytics', compact('stats', 'trend')); }
+function seller_reviews(mysqli $conn): void { require_seller_verified(); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { if (isset($_POST['response_text'])) { review_respond($conn, (int)$_POST['review_id'], current_user_id(), trim($_POST['response_text'])); $message = 'Response saved.'; } else { $rating = (int)($_POST['rating'] ?? 0); $listingId = (int)($_POST['listing_id'] ?? 0); $buyerId = (int)($_POST['buyer_id'] ?? 0); $text = trim($_POST['review_text'] ?? ''); if ($rating < 1 || $rating > 5 || $text === '') { $message = 'Valid rating and review text required.'; } elseif (!seller_can_review_buyer($conn, $listingId, current_user_id(), $buyerId)) { $message = 'You can review only the winning buyer once per completed auction.'; } else { review_create($conn, $listingId, current_user_id(), $buyerId, $rating, $text); $message = 'Buyer review submitted.'; } } } $rows = review_received($conn, current_user_id()); $reviewableBuyers = seller_reviewable_buyers($conn, current_user_id()); render_view('seller/reviews', compact('rows', 'reviewableBuyers', 'message')); }
+function seller_relist(mysqli $conn): void { require_seller_verified(); redirect_to('index.php?page=create_listing&relist_id=' . (int)($_GET['id'] ?? 0)); }
 
 function moderator_dashboard_page(mysqli $conn): void { require_role('moderator'); $stats = moderator_dashboard($conn); render_view('moderator/dashboard', compact('stats')); }
 function moderator_pending_listings(mysqli $conn): void { require_role('moderator'); $rows = listing_pending($conn); render_view('moderator/pending', compact('rows')); }

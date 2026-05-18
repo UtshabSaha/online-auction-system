@@ -32,7 +32,8 @@ switch ($page) {
     case 'seller_ended': seller_ended_page($conn); break;
     case 'seller_analytics': seller_analytics_page($conn); break;
     case 'seller_reviews': seller_reviews($conn); break;
-    case 'relist': seller_relist(); break;
+    case 'cancel_listing': seller_cancel_listing($conn); break;
+    case 'relist': seller_relist($conn); break;
 
     case 'moderator_dashboard': moderator_dashboard_page($conn); break;
     case 'pending_listings': moderator_pending_listings($conn); break;
