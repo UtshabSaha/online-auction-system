@@ -179,3 +179,49 @@ body.dark-mode .dark-mode-toggle .toggle-thumb {
     font-size: 15px;
     color: #f59e0b;
 }
+/* Keep the dark mode control as a switch, not a full-width action button. */
+.dark-mode-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 4px;
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    width: auto;
+    color: #64748b;
+    font-size: 14px;
+    text-align: center;
+}
+.dark-mode-toggle:hover { background: #f1f5f9; }
+body.dark-mode .dark-mode-toggle {
+    background: transparent !important;
+    color: #cbd5e1;
+}
+body.dark-mode .dark-mode-toggle:hover { background: #1e293b !important; }
+.dark-mode-toggle .toggle-track {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: #cbd5e1;
+    border-radius: 999px;
+    flex-shrink: 0;
+    transition: background 0.3s;
+}
+.dark-mode-toggle .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+body.dark-mode .dark-mode-toggle .toggle-track { background: #2563eb; }
+body.dark-mode .dark-mode-toggle .toggle-thumb { transform: translateX(20px); }
+.dark-mode-toggle i { font-size: 15px; color: #f59e0b; }

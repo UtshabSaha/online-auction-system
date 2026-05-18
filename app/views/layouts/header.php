@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Online Auction System</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=202605181620">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
@@ -73,9 +73,8 @@
         <?php nav_link('announcements', 'Announcements', $current_page); ?>
     <?php endif; ?>
     <?php if (current_role()==='admin' || current_role()==='moderator'): ?>
-        <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">
+        <button class="dark-mode-toggle" onclick="toggleDarkMode()" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
             <i class="fa-solid fa-moon"></i>
-            <span>Dark</span>
             <span class="toggle-track"><span class="toggle-thumb"></span></span>
         </button>
     <?php endif; ?>
