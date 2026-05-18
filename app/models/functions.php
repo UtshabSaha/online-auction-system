@@ -150,9 +150,13 @@ function review_respond(mysqli $conn, int $id, int $user, string $text): bool { 
 
 function report_create_listing(mysqli $conn, int $listing, int $reporter, string $reason, string $description): bool { return db_execute($conn, 'INSERT INTO listing_reports (listing_id,reporter_id,reason,description) VALUES (?,?,?,?)', 'iiss', [$listing, $reporter, $reason, $description]); }
 function report_create_user(mysqli $conn, int $reporter, int $reported, string $reason, string $description): bool { return db_execute($conn, 'INSERT INTO user_reports (reporter_id,reported_user_id,reason,description) VALUES (?,?,?,?)', 'iiss', [$reporter, $reported, $reason, $description]); }
+<<<<<<< HEAD
 function buyer_reportable_listings(mysqli $conn): array { return db_rows($conn, "SELECT id, title FROM listings WHERE status IN ('active','ended') ORDER BY created_at DESC"); }
 function buyer_reportable_users(mysqli $conn, int $currentUser): array { return db_rows($conn, 'SELECT id, name, role FROM users WHERE id<>? AND is_active=1 ORDER BY name', 'i', [$currentUser]); }
 function report_listing_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, l.title, u.name reporter_name FROM listing_reports r JOIN listings l ON l.id=r.listing_id JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC'); }
+=======
+function report_listing_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, l.title, l.seller_id, l.status listing_status, u.name reporter_name FROM listing_reports r JOIN listings l ON l.id=r.listing_id JOIN users u ON u.id=r.reporter_id ORDER BY r.created_at DESC'); }
+>>>>>>> origin/moderator/features
 function report_user_rows(mysqli $conn): array { return db_rows($conn, 'SELECT r.*, a.name reporter_name, b.name reported_name FROM user_reports r JOIN users a ON a.id=r.reporter_id JOIN users b ON b.id=r.reported_user_id ORDER BY r.created_at DESC'); }
 function report_update_listing(mysqli $conn, int $id, string $status, string $note): bool { return db_execute($conn, 'UPDATE listing_reports SET status=?, moderator_note=? WHERE id=?', 'ssi', [$status, $note, $id]); }
 function report_update_user(mysqli $conn, int $id, string $status, string $note): bool { return db_execute($conn, 'UPDATE user_reports SET status=?, moderator_note=? WHERE id=?', 'ssi', [$status, $note, $id]); }
@@ -172,13 +176,105 @@ function seller_sales_trend(mysqli $conn, int $seller): array { return db_rows($
 
 function moderator_dashboard(mysqli $conn): ?array { return db_row($conn, "SELECT (SELECT COUNT(*) FROM listings WHERE status='pending_review') pending_listings, (SELECT COUNT(*) FROM listing_reports WHERE status='pending') listing_reports, (SELECT COUNT(*) FROM user_reports WHERE status='pending') user_reports, (SELECT COUNT(*) FROM warnings WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) warnings_week"); }
 function moderator_warn(mysqli $conn, int $user, int $by, string $reason): bool { return db_execute($conn, 'INSERT INTO warnings (user_id,issued_by,reason) VALUES (?,?,?)', 'iis', [$user, $by, $reason]); }
-function moderator_warnings(mysqli $conn): array { return db_rows($conn, 'SELECT w.*, u.name user_name, m.name issued_by_name FROM warnings w JOIN users u ON u.id=w.user_id JOIN users m ON m.id=w.issued_by ORDER BY w.created_at DESC'); }
+function moderator_warnings(mysqli $conn): array { return db_rows($conn, 'SELECT w.*, u.name user_name, u.email user_email, m.name issued_by_name FROM warnings w JOIN users u ON u.id=w.user_id JOIN users m ON m.id=w.issued_by ORDER BY w.created_at DESC'); }
 function moderator_add_category(mysqli $conn, string $name, string $desc, ?int $parent): bool { return db_execute($conn, 'INSERT INTO categories (name,description,parent_id) VALUES (?,?,?)', 'ssi', [$name, $desc, $parent]); }
 function moderator_rename_category(mysqli $conn, int $id, string $name, string $desc): bool { return db_execute($conn, 'UPDATE categories SET name=?, description=? WHERE id=?', 'ssi', [$name, $desc, $id]); }
 function moderator_delete_empty_category(mysqli $conn, int $id): bool { return db_execute($conn, 'DELETE FROM categories WHERE id=? AND NOT EXISTS (SELECT 1 FROM listings WHERE category_id=?)', 'ii', [$id, $id]); }
 function moderator_merge_category(mysqli $conn, int $source, int $dest): bool { db_execute($conn, 'UPDATE listings SET category_id=? WHERE category_id=?', 'ii', [$dest, $source]); return db_execute($conn, 'DELETE FROM categories WHERE id=?', 'i', [$source]); }
 function moderator_activity(mysqli $conn): ?array { return db_row($conn, "SELECT (SELECT COUNT(*) FROM listings WHERE status IN ('active','rejected')) reviewed, (SELECT COUNT(*) FROM listings WHERE status='active') approved, (SELECT COUNT(*) FROM listing_reports WHERE status<>'pending') listing_reports, (SELECT COUNT(*) FROM user_reports WHERE status<>'pending') user_reports, (SELECT COUNT(*) FROM warnings) warnings"); }
-function moderator_trust_scores(mysqli $conn): array { return db_rows($conn, 'SELECT u.*, (SELECT COUNT(*) FROM warnings w WHERE w.user_id=u.id) warnings, (SELECT COUNT(*) FROM user_reports r WHERE r.reported_user_id=u.id) reports FROM users u ORDER BY reputation_score DESC'); }
+function moderator_trust_scores(mysqli $conn): array { return db_rows($conn, 'SELECT u.id, u.name, u.email, u.role, u.reputation_score, u.is_active, (SELECT COUNT(*) FROM warnings w WHERE w.user_id=u.id) warnings, (SELECT COUNT(*) FROM user_reports r WHERE r.reported_user_id=u.id) reports FROM users u WHERE u.role IN (\'buyer\',\'seller\') ORDER BY reputation_score DESC'); }
+
+// --- Moderator: Active Listing Suspension ---
+function moderator_active_listings(mysqli $conn, string $keyword = ''): array {
+    $sql = "SELECT l.*, u.name seller_name, c.name category_name, (SELECT COUNT(*) FROM bids WHERE listing_id=l.id) bid_count FROM listings l JOIN users u ON u.id=l.seller_id JOIN categories c ON c.id=l.category_id WHERE l.status='active'";
+    $types = ''; $params = [];
+    if ($keyword !== '') { $sql .= ' AND (l.title LIKE ? OR l.description LIKE ?)'; $types = 'ss'; $like = '%' . $keyword . '%'; $params = [$like, $like]; }
+    $sql .= ' ORDER BY l.created_at DESC';
+    return db_rows($conn, $sql, $types, $params);
+}
+
+function moderator_approve_listing(mysqli $conn, int $id): bool {
+    return db_execute($conn, "UPDATE listings SET status='active', rejection_reason=NULL, suspension_reason=NULL WHERE id=? AND status='pending_review'", 'i', [$id]);
+}
+
+function moderator_reject_listing(mysqli $conn, int $id, string $reason): bool {
+    return db_execute($conn, "UPDATE listings SET status='rejected', rejection_reason=? WHERE id=? AND status='pending_review'", 'si', [$reason, $id]);
+}
+
+function moderator_suspend_listing(mysqli $conn, int $id, string $reason): bool {
+    return db_execute($conn, "UPDATE listings SET status='pending_review', suspension_reason=? WHERE id=? AND status='active'", 'si', [$reason, $id]);
+}
+
+// --- Moderator: Keyword Abuse Log ---
+function moderator_flagged_keywords(mysqli $conn): array {
+    return db_rows($conn, 'SELECT * FROM flagged_keywords ORDER BY keyword');
+}
+
+function moderator_add_keyword(mysqli $conn, string $keyword): bool {
+    return db_execute($conn, 'INSERT IGNORE INTO flagged_keywords (keyword) VALUES (?)', 's', [strtolower(trim($keyword))]);
+}
+
+function moderator_delete_keyword(mysqli $conn, int $id): bool {
+    return db_execute($conn, 'DELETE FROM flagged_keywords WHERE id=?', 'i', [$id]);
+}
+
+function moderator_keyword_listings(mysqli $conn): array {
+    $keywords = db_rows($conn, 'SELECT keyword FROM flagged_keywords');
+    if (!$keywords) return [];
+    $conditions = []; $types = ''; $params = [];
+    foreach ($keywords as $k) {
+        $like = '%' . $k['keyword'] . '%';
+        $conditions[] = '(l.title LIKE ? OR l.description LIKE ?)';
+        $types .= 'ss';
+        $params[] = $like;
+        $params[] = $like;
+    }
+    $sql = "SELECT l.*, u.name seller_name, c.name category_name FROM listings l JOIN users u ON u.id=l.seller_id JOIN categories c ON c.id=l.category_id WHERE l.status IN ('active','pending_review') AND (" . implode(' OR ', $conditions) . ') ORDER BY l.created_at DESC';
+    return db_rows($conn, $sql, $types, $params);
+}
+
+// --- Moderator: Messaging ---
+function moderator_send_message(mysqli $conn, int $sender, int $receiver, ?int $listing_id, string $message): bool {
+    return db_execute($conn, 'INSERT INTO messages (sender_id,receiver_id,listing_id,message) VALUES (?,?,?,?)', 'iiis', [$sender, $receiver, $listing_id, $message]);
+}
+
+function moderator_messages_sent(mysqli $conn, int $sender): array {
+    return db_rows($conn, 'SELECT m.*, u.name receiver_name, u.role receiver_role, l.title listing_title FROM messages m JOIN users u ON u.id=m.receiver_id LEFT JOIN listings l ON l.id=m.listing_id WHERE m.sender_id=? ORDER BY m.created_at DESC', 'i', [$sender]);
+}
+
+function moderator_users_list(mysqli $conn, string $keyword = ''): array {
+    $like = '%' . $keyword . '%';
+    return db_rows($conn, "SELECT id, name, email, role FROM users WHERE role IN ('buyer','seller') AND (name LIKE ? OR email LIKE ?) ORDER BY name LIMIT 50", 'ss', [$like, $like]);
+}
+
+// --- Moderator: Trust Score Detail ---
+function moderator_user_detail(mysqli $conn, int $id): ?array {
+    return db_row($conn, 'SELECT u.*, (SELECT COUNT(*) FROM warnings w WHERE w.user_id=u.id) warning_count, (SELECT COUNT(*) FROM user_reports r WHERE r.reported_user_id=u.id) report_count, (SELECT COUNT(*) FROM listings WHERE seller_id=u.id) listing_count FROM users u WHERE u.id=?', 'i', [$id]);
+}
+
+function moderator_user_warnings_history(mysqli $conn, int $user): array {
+    return db_rows($conn, 'SELECT w.*, m.name issued_by_name FROM warnings w JOIN users m ON m.id=w.issued_by WHERE w.user_id=? ORDER BY w.created_at DESC', 'i', [$user]);
+}
+
+function moderator_user_reports_history(mysqli $conn, int $user): array {
+    return db_rows($conn, 'SELECT r.*, u.name reporter_name FROM user_reports r JOIN users u ON u.id=r.reporter_id WHERE r.reported_user_id=? ORDER BY r.created_at DESC', 'i', [$user]);
+}
+
+// --- Moderator: Activity Report with Period ---
+function moderator_activity_period(mysqli $conn, string $from, string $to): ?array {
+    $to_end = $to . ' 23:59:59';
+    return db_row($conn,
+        "SELECT
+            (SELECT COUNT(*) FROM listings WHERE status IN ('active','rejected') AND created_at BETWEEN ? AND ?) AS reviewed,
+            (SELECT COUNT(*) FROM listings WHERE status='active' AND created_at BETWEEN ? AND ?) AS approved,
+            (SELECT COUNT(*) FROM listings WHERE status='rejected' AND created_at BETWEEN ? AND ?) AS rejected_count,
+            (SELECT COUNT(*) FROM listing_reports WHERE status<>'pending' AND created_at BETWEEN ? AND ?) AS listing_reports_done,
+            (SELECT COUNT(*) FROM user_reports WHERE status<>'pending' AND created_at BETWEEN ? AND ?) AS user_reports_done,
+            (SELECT COUNT(*) FROM warnings WHERE created_at BETWEEN ? AND ?) AS warnings_issued",
+        'ssssssssssss',
+        [$from, $to_end, $from, $to_end, $from, $to_end, $from, $to_end, $from, $to_end, $from, $to_end]
+    );
+}
 
 function admin_verifications(mysqli $conn, string $status = 'pending'): array { return db_rows($conn, 'SELECT r.*, u.name, u.email, u.phone FROM seller_verification_requests r JOIN users u ON u.id=r.user_id WHERE r.status=? ORDER BY r.submitted_at', 's', [$status]); }
 function admin_decide_verification(mysqli $conn, int $id, string $status, int $admin, string $reason = ''): bool { $req = db_row($conn, 'SELECT * FROM seller_verification_requests WHERE id=?', 'i', [$id]); if (!$req) return false; db_execute($conn, 'UPDATE seller_verification_requests SET status=?, reviewed_by=?, reject_reason=?, reviewed_at=NOW() WHERE id=?', 'sisi', [$status, $admin, $reason, $id]); if ($status === 'approved') db_execute($conn, "UPDATE users SET role='seller', seller_verified=1 WHERE id=?", 'i', [$req['user_id']]); return true; }

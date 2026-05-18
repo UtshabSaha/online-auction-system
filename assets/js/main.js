@@ -96,3 +96,25 @@ setInterval(updateCountdowns, 1000);
 updateCountdowns();
 initCreateListingAjax();
 setInterval(function(){ document.querySelectorAll('[data-refresh-bids]').forEach(el=>refreshBids(el.dataset.refreshBids)); }, 5000);
+
+// ── Dark Mode ──
+(function(){
+    var STORAGE_KEY = 'auction_dark_mode';
+    function applyMode(dark){
+        if(dark){
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+    }
+    // Apply saved preference on load
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if(saved === '1') applyMode(true);
+
+    // Toggle handler - called from the button in header
+    window.toggleDarkMode = function(){
+        var isDark = document.body.classList.contains('dark-mode');
+        applyMode(!isDark);
+        localStorage.setItem(STORAGE_KEY, isDark ? '0' : '1');
+    };
+})();
