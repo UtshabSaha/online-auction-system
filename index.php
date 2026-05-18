@@ -34,6 +34,7 @@ switch ($page) {
     case 'seller_reviews': seller_reviews($conn); break;
     case 'relist': seller_relist(); break;
 
+    // Moderator pages (sidebar)
     case 'moderator_dashboard': moderator_dashboard_page($conn); break;
     case 'pending_listings': moderator_pending_listings($conn); break;
     case 'listing_reports': moderator_listing_reports($conn); break;
@@ -42,6 +43,12 @@ switch ($page) {
     case 'categories': moderator_categories($conn); break;
     case 'moderation_report': moderator_activity_report($conn); break;
     case 'trust_score': moderator_trust_score($conn); break;
+
+    // Moderator sub-pages (accessible from within moderator pages)
+    case 'active_listings': moderator_active_listings_page($conn); break;
+    case 'keyword_abuse': moderator_keyword_abuse_page($conn); break;
+    case 'mod_messaging': moderator_messaging_page($conn); break;
+    case 'trust_detail': moderator_trust_detail_page($conn); break;
 
     case 'admin_dashboard': admin_dashboard($conn); break;
     case 'seller_verifications': admin_seller_verifications($conn); break;

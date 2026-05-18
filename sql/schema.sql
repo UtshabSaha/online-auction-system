@@ -2,7 +2,7 @@ CREATE DATABASE IF NOT EXISTS auction_system CHARACTER SET utf8mb4 COLLATE utf8m
 USE auction_system;
 
 SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS messages, announcements, commission_rates, platform_fees, auction_templates, warnings, user_reports, listing_reports, reviews, watchlist, auto_bids, bids, listing_images, seller_verification_requests, listings, categories, users;
+DROP TABLE IF EXISTS messages, announcements, commission_rates, platform_fees, auction_templates, warnings, user_reports, listing_reports, reviews, watchlist, auto_bids, bids, listing_images, seller_verification_requests, listings, categories, users, flagged_keywords;
 SET FOREIGN_KEY_CHECKS = 1;
 
 CREATE TABLE users (
@@ -43,6 +43,7 @@ CREATE TABLE listings (
     winner_bid_id INT NULL,
     rejection_reason TEXT,
     cancel_reason TEXT,
+    suspension_reason TEXT,
     is_featured TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (seller_id) REFERENCES users(id),
@@ -94,7 +95,7 @@ CREATE TABLE watchlist (
 CREATE TABLE seller_verification_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    motivation TEXT NOT NULL, 
+    motivation TEXT NOT NULL,
     id_document_path VARCHAR(255) NOT NULL,
     status ENUM('pending','approved','rejected') DEFAULT 'pending',
     reviewed_by INT NULL,
@@ -209,6 +210,13 @@ CREATE TABLE messages (
     FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+CREATE TABLE flagged_keywords (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    keyword VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_keyword (keyword)
+) ENGINE=InnoDB;
+
 INSERT INTO users (name,email,password_hash,phone,bio,role,seller_verified,is_active,reputation_score) VALUES
 ('Admin User','admin@example.com','$2y$12$o9XW.x/V7X/mbiaGDNZooeksHuyyq2kSaRuuxdcudj71UsA4KPwUu','01700000000','Platform administrator','admin',0,1,5.00),
 ('Moderator User','moderator@example.com','$2y$12$o9XW.x/V7X/mbiaGDNZooeksHuyyq2kSaRuuxdcudj71UsA4KPwUu','01700000001','Platform moderator','moderator',0,1,4.80),
@@ -234,3 +242,6 @@ INSERT INTO listing_images (listing_id,image_path,display_order) VALUES
 
 INSERT INTO commission_rates (seller_id, rate, is_default) VALUES (NULL, 5.00, 1);
 INSERT INTO announcements (title,message,posted_by) VALUES ('Welcome','Welcome to the Online Auction System demo.',1);
+
+INSERT INTO flagged_keywords (keyword) VALUES
+('fake'),('stolen'),('replica'),('counterfeit'),('illegal'),('prohibited'),('scam'),('fraud'),('banned');
