@@ -1,4 +1,5 @@
 function qs(id){return document.getElementById(id)}
+function escapeHtml(value){return String(value ?? '').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
 function postAjax(url, data, callback){
     const xhr=new XMLHttpRequest();
     xhr.open('POST',url,true);
@@ -11,28 +12,33 @@ function getAjax(url, callback){
     xhr.onload=function(){try{callback(JSON.parse(xhr.responseText));}catch(e){callback({success:false,message:'Invalid server response'});}}; xhr.send();
 }
 function placeBid(listingId){
-    postAjax('public/api/buyer.php?action=place_bid',{listing_id:listingId,amount:qs('bidAmount').value},function(res){
+    postAjax('public/api/place_bid.php',{listing_id:listingId,amount:qs('bidAmount').value},function(res){
         qs('bidMessage').innerText=res.message;
         if(res.success){ qs('currentBid').innerText=res.current_bid; refreshBids(listingId); }
     });
 }
 function setAutoBid(listingId){
-    postAjax('public/api/buyer.php?action=auto_bid',{listing_id:listingId,max_amount:qs('autoBidAmount').value},function(res){qs('autoBidMessage').innerText=res.message;});
+    postAjax('public/api/auto_bid.php',{listing_id:listingId,max_amount:qs('autoBidAmount').value},function(res){qs('autoBidMessage').innerText=res.message;});
 }
 function toggleWatch(listingId){
-    postAjax('public/api/buyer.php?action=watchlist',{listing_id:listingId},function(res){alert(res.message);});
+    postAjax('public/api/watchlist_toggle.php',{listing_id:listingId},function(res){alert(res.message);});
 }
 function refreshBids(listingId){
-    getAjax('public/api/buyer.php?action=bid_history&listing_id='+listingId,function(res){
+    getAjax('public/api/live_bid_history.php?listing_id='+listingId,function(res){
         if(!res.success||!qs('bidHistory'))return;
-        qs('bidHistory').innerHTML=res.bids.map(b=>'<tr><td>'+b.buyer_name+'</td><td>'+b.amount+'</td><td>'+b.created_at+'</td></tr>').join('');
+        qs('bidHistory').innerHTML=res.data.map(b=>'<tr><td>'+escapeHtml(b.buyer_name)+'</td><td>'+escapeHtml(b.amount)+'</td><td>'+(Number(b.is_auto_bid) ? 'Auto' : 'Manual')+'</td><td>'+escapeHtml(b.created_at)+'</td></tr>').join('');
         if(qs('currentBid')) qs('currentBid').innerText=res.current_bid;
+        if(qs('bidCount')) qs('bidCount').innerText=res.bid_count;
     });
+}
+function listingCard(l){
+    const img = l.image_path || 'assets/images/no-image.png';
+    return '<div class="card auction-card"><img src="'+escapeHtml(img)+'" alt=""><h3>'+escapeHtml(l.title)+'</h3><p>'+escapeHtml(l.category_name)+' - '+escapeHtml(l.condition)+'</p><p><strong>Current bid:</strong> '+escapeHtml(l.current_bid)+'</p><p><strong>Time left:</strong> <span class="countdown" data-countdown="'+escapeHtml(l.end_datetime)+'">'+escapeHtml(l.end_datetime)+'</span></p><a class="btn" href="index.php?page=auction&id='+escapeHtml(l.id)+'">View Auction</a></div>';
 }
 function searchAuctions(){
     const params=new URLSearchParams({q:qs('q').value,category:qs('category').value,condition:qs('condition').value,min:qs('min').value,max:qs('max').value});
-    getAjax('public/api/buyer.php?action=search&'+params.toString(),function(res){
-        if(!res.success)return; qs('auctionGrid').innerHTML=res.html;
+    getAjax('public/api/search_listings.php?'+params.toString(),function(res){
+        if(!res.success)return; qs('auctionGrid').innerHTML=res.data.map(listingCard).join('');
     });
 }
 function moderateListing(id,status){
@@ -44,4 +50,20 @@ function adminUserSearch(){
         if(!res.success)return; qs('adminUsersTable').innerHTML=res.html;
     });
 }
+function formatCountdown(endTime){
+    const end = new Date(String(endTime).replace(' ', 'T')).getTime();
+    const diff = end - Date.now();
+    if(!end || diff <= 0) return 'Ended';
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    if(days > 0) return days+'d '+hours+'h '+minutes+'m';
+    return hours+'h '+minutes+'m '+seconds+'s';
+}
+function updateCountdowns(){
+    document.querySelectorAll('[data-countdown]').forEach(function(el){ el.innerText = formatCountdown(el.dataset.countdown); });
+}
+setInterval(updateCountdowns, 1000);
+updateCountdowns();
 setInterval(function(){ document.querySelectorAll('[data-refresh-bids]').forEach(el=>refreshBids(el.dataset.refreshBids)); }, 5000);

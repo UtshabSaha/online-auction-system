@@ -160,11 +160,13 @@ $dbname = 'auction_system';
 
 ## AJAX Endpoints
 
-- `public/api/buyer.php?action=place_bid`
-- `public/api/buyer.php?action=auto_bid`
-- `public/api/buyer.php?action=bid_history`
-- `public/api/buyer.php?action=search`
-- `public/api/buyer.php?action=watchlist`
+- `public/api/place_bid.php`
+- `public/api/auto_bid.php`
+- `public/api/search_listings.php`
+- `public/api/watchlist_toggle.php`
+- `public/api/live_bid_history.php`
+- `public/api/get_notifications.php`
+- `public/api/filter_listings.php`
 - `public/api/moderator.php?action=listing_status`
 - `public/api/admin.php?action=search_users`
 
