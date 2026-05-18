@@ -1,1 +1,1 @@
-<div class="card"><h1>Platform Analytics</h1><table><tr><th>Day</th><th>Total Bids</th><th>Average Bid</th></tr><?php foreach($rows as $r): ?><tr><td><?= e($r['day']) ?></td><td><?= e($r['bids']) ?></td><td><?= e($r['average_bid']) ?></td></tr><?php endforeach; ?></table></div>
+<div class="card"><h1>Platform Analytics</h1><table><tr> <th>Day</th><th>Total Bids</th><th>Average Bid</th></tr><?php foreach($rows as $r): ?><tr><td><?= e($r['day']) ?></td><td><?= e($r['bids']) ?></td><td><?= e($r['average_bid']) ?></td></tr><?php endforeach; ?></table></div>
