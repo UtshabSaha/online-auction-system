@@ -190,6 +190,12 @@ function moderator_active_listings(mysqli $conn, string $keyword = ''): array {
 }
 
 function moderator_approve_listing(mysqli $conn, int $id): bool {
+    // If end_datetime already passed, extend it by 7 days from now so the listing actually goes live
+    $listing = db_row($conn, 'SELECT end_datetime FROM listings WHERE id=? AND status=\'pending_review\'', 'i', [$id]);
+    if ($listing && strtotime($listing['end_datetime']) <= time()) {
+        $newEnd = date('Y-m-d H:i:s', strtotime('+7 days'));
+        return db_execute($conn, "UPDATE listings SET status='active', end_datetime=?, rejection_reason=NULL, suspension_reason=NULL WHERE id=? AND status='pending_review'", 'si', [$newEnd, $id]);
+    }
     return db_execute($conn, "UPDATE listings SET status='active', rejection_reason=NULL, suspension_reason=NULL WHERE id=? AND status='pending_review'", 'i', [$id]);
 }
 
