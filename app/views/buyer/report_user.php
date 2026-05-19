@@ -7,7 +7,7 @@
 
     <form method="post">
         <label>User</label>
-        <select name="reported_user_id" required>
+        <select name="reported_user_id">
             <option value="">Select user</option>
             <?php foreach ($users as $user): ?>
                 <option value="<?= $user['id'] ?>" <?= $selectedUserId === (int)$user['id'] ? 'selected' : '' ?>>
@@ -17,7 +17,7 @@
         </select>
 
         <label>Reason</label>
-        <select name="reason" required>
+        <select name="reason">
             <option value="">Select reason</option>
             <option value="Harassment or abuse">Harassment or abuse</option>
             <option value="Fraud or scam">Fraud or scam</option>
@@ -26,7 +26,7 @@
         </select>
 
         <label>Description</label>
-        <textarea name="description" minlength="10" required></textarea>
+        <textarea name="description"></textarea>
 
         <button>Submit Report</button>
     </form>

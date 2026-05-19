@@ -8,10 +8,10 @@
 
     <form method="post" action="index.php?page=register" class="form-card">
         <label>Name</label>
-        <input type="text" name="name" value="<?= e($old['name'] ?? '') ?>" required>
+        <input type="text" name="name" value="<?= e($old['name'] ?? '') ?>">
 
         <label>Email</label>
-        <input type="email" name="email" value="<?= e($old['email'] ?? '') ?>" required>
+        <input type="text" name="email" value="<?= e($old['email'] ?? '') ?>">
 
         <label>Phone</label>
         <input type="text" name="phone" value="<?= e($old['phone'] ?? '') ?>">
@@ -20,10 +20,10 @@
         <textarea name="bio"><?= e($old['bio'] ?? '') ?></textarea>
 
         <label>Password</label>
-        <input type="password" name="password" minlength="8" required>
+        <input type="password" name="password">
 
         <label>Confirm Password</label>
-        <input type="password" name="confirm_password" minlength="8" required>
+        <input type="password" name="confirm_password">
 
         <button type="submit">Create Account</button>
     </form>

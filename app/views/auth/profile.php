@@ -32,7 +32,7 @@
         </script>
 
         <label>Name</label>
-        <input name="name" value="<?= e($user['name']) ?>" required>
+        <input name="name" value="<?= e($user['name']) ?>">
 
         <label>Phone</label>
         <input name="phone" value="<?= e($user['phone']) ?>">
@@ -72,10 +72,10 @@
         <input type="hidden" name="change_password" value="1">
 
         <label>New Password</label>
-        <input type="password" name="new_password" minlength="8" required>
+        <input type="password" name="new_password">
 
         <label>Confirm Password</label>
-        <input type="password" name="confirm_password" minlength="8" required>
+        <input type="password" name="confirm_password">
 
         <button>Change Password</button>
     </form>

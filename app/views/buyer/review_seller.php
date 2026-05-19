@@ -10,7 +10,7 @@
     <?php else: ?>
         <form method="post">
             <label>Completed Auction</label>
-            <select name="listing_id" id="reviewListing" required onchange="document.getElementById('sellerId').value=this.options[this.selectedIndex].dataset.seller">
+            <select name="listing_id" id="reviewListing" onchange="document.getElementById('sellerId').value=this.options[this.selectedIndex].dataset.seller">
                 <option value="">Select auction</option>
                 <?php foreach ($reviewable as $row): ?>
                     <option value="<?= $row['listing_id'] ?>" data-seller="<?= $row['seller_id'] ?>">
@@ -21,10 +21,10 @@
             <input type="hidden" name="seller_id" id="sellerId">
 
             <label>Rating</label>
-            <input type="number" name="rating" min="1" max="5" required>
+            <input type="number" name="rating">
 
             <label>Review</label>
-            <textarea name="review_text" required></textarea>
+            <textarea name="review_text"></textarea>
 
             <button>Submit Review</button>
         </form>

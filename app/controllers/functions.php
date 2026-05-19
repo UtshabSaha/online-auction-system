@@ -8,11 +8,20 @@ function auth_login(mysqli $conn): void {
         $email = trim($_POST['email'] ?? '');
         $old_email = $email;
         $password = $_POST['password'] ?? '';
-        $user = user_find_by_email($conn, $email);
 
-        if (!$user || !$user['is_active'] || !password_verify($password, $user['password_hash'])) {
-            $error = 'Invalid login or inactive account.';
+        if ($email === '') {
+            $error = 'Email is required.';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = 'Please enter a valid email address.';
+        } elseif ($password === '') {
+            $error = 'Password is required.';
         } else {
+            $user = user_find_by_email($conn, $email);
+        }
+
+        if (!$error && (!$user || !$user['is_active'] || !password_verify($password, $user['password_hash']))) {
+            $error = 'Invalid login or inactive account.';
+        } elseif (!$error) {
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_name'] = $user['name'];
@@ -73,7 +82,9 @@ function auth_profile(mysqli $conn): void {
             $newPassword = $_POST['new_password'] ?? '';
             $confirmPassword = $_POST['confirm_password'] ?? '';
 
-            if ($newPassword !== $confirmPassword) {
+            if ($newPassword === '' || $confirmPassword === '') {
+                $message = 'Both password fields are required.';
+            } elseif ($newPassword !== $confirmPassword) {
                 $message = 'New passwords and confirm passwords must be same.';
             } elseif (strlen($newPassword) < 8) {
                 $message = 'Password must be at least 8 characters.';
@@ -82,13 +93,18 @@ function auth_profile(mysqli $conn): void {
                 $message = 'Password changed.';
             }
         } else {
-            $pic = $user['profile_pic'] ?? null;
-            $uploaded = upload_file('profile_pic', 'profiles', ['jpg', 'jpeg', 'png', 'webp']);
-            if ($uploaded) { $pic = $uploaded; }
+            $name = trim($_POST['name'] ?? '');
+            if ($name === '') {
+                $message = 'Name is required.';
+            } else {
+                $pic = $user['profile_pic'] ?? null;
+                $uploaded = upload_file('profile_pic', 'profiles', ['jpg', 'jpeg', 'png', 'webp']);
+                if ($uploaded) { $pic = $uploaded; }
 
-            user_update_profile($conn, current_user_id(), trim($_POST['name'] ?? ''), trim($_POST['phone'] ?? ''), trim($_POST['bio'] ?? ''), $pic);
-            $message = 'Profile updated.';
-            $user = user_find($conn, current_user_id());
+                user_update_profile($conn, current_user_id(), $name, trim($_POST['phone'] ?? ''), trim($_POST['bio'] ?? ''), $pic);
+                $message = 'Profile updated.';
+                $user = user_find($conn, current_user_id());
+            }
         }
     }
 
@@ -278,7 +294,7 @@ function seller_listings(mysqli $conn): void { require_seller_verified(); listin
 function seller_edit_listing(mysqli $conn): void { require_seller_verified(); $listing = listing_find($conn, (int)$_GET['id']); if (!$listing || (int)$listing['seller_id'] !== current_user_id()) { http_response_code(404); echo 'Listing not found'; return; } $cats = listing_categories($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { $errors = listing_errors($_POST); if ($errors) { $message = format_errors($errors); } else { $ok = listing_update_if_no_bids($conn, (int)$_GET['id'], current_user_id(), (int)$_POST['category_id'], trim($_POST['title']), trim($_POST['description']), $_POST['condition'], (float)$_POST['starting_price'], ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price']), $_POST['end_datetime']); $message = $ok ? 'Listing updated.' : 'Only your zero-bid listings can be edited.'; $listing = listing_find($conn, (int)$_GET['id']); } } render_view('seller/edit_listing', compact('listing', 'cats', 'message')); }
 function seller_cancel_listing(mysqli $conn): void { require_seller_verified(); if ($_SERVER['REQUEST_METHOD'] !== 'POST') { redirect_to('index.php?page=seller_listings'); } $reason = trim($_POST['reason'] ?? 'Cancelled by seller before any bid.'); listing_cancel_if_no_bids($conn, (int)$_POST['listing_id'], current_user_id(), $reason); redirect_to('index.php?page=seller_listings'); }
 function seller_templates_page(mysqli $conn): void { require_seller_verified(); $cats = listing_categories($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { if (trim($_POST['title'] ?? '') === '' || (float)($_POST['starting_price'] ?? 0) <= 0) { $message = 'Template title and positive starting price required.'; } elseif (!empty($_POST['reserve_price']) && (float)$_POST['reserve_price'] < (float)$_POST['starting_price']) { $message = 'Reserve cannot be lower than starting price.'; } else { seller_create_template($conn, current_user_id(), trim($_POST['title']), trim($_POST['description']), (int)$_POST['category_id'], $_POST['condition'], (float)$_POST['starting_price'], ($_POST['reserve_price'] === '' ? null : (float)$_POST['reserve_price'])); $message = 'Template saved.'; } } $rows = seller_templates($conn, current_user_id()); render_view('seller/templates', compact('rows', 'cats', 'message')); }
-function seller_ended_page(mysqli $conn): void { require_seller_verified(); listing_close_expired_auctions($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['arrangement_note'])) { $note = trim($_POST['arrangement_note']); if ($note !== '') { seller_note_buyer($conn, (int)$_POST['listing_id'], current_user_id(), (int)$_POST['buyer_id'], $note); $message = 'Arrangement note saved.'; } } $rows = seller_ended($conn, current_user_id()); render_view('seller/ended', compact('rows', 'message')); }
+function seller_ended_page(mysqli $conn): void { require_seller_verified(); listing_close_expired_auctions($conn); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['arrangement_note'])) { $note = trim($_POST['arrangement_note']); if ($note === '') { $message = 'Arrangement note cannot be empty.'; } else { seller_note_buyer($conn, (int)$_POST['listing_id'], current_user_id(), (int)$_POST['buyer_id'], $note); $message = 'Arrangement note saved.'; } } $rows = seller_ended($conn, current_user_id()); render_view('seller/ended', compact('rows', 'message')); }
 function seller_analytics_page(mysqli $conn): void { require_seller_verified(); listing_close_expired_auctions($conn); $stats = seller_analytics($conn, current_user_id()); $trend = seller_sales_trend($conn, current_user_id()); render_view('seller/analytics', compact('stats', 'trend')); }
 function seller_reviews(mysqli $conn): void { require_seller_verified(); $message = ''; if ($_SERVER['REQUEST_METHOD'] === 'POST') { if (isset($_POST['response_text'])) { review_respond($conn, (int)$_POST['review_id'], current_user_id(), trim($_POST['response_text'])); $message = 'Response saved.'; } else { $rating = (int)($_POST['rating'] ?? 0); $listingId = (int)($_POST['listing_id'] ?? 0); $buyerId = (int)($_POST['buyer_id'] ?? 0); $text = trim($_POST['review_text'] ?? ''); if ($rating < 1 || $rating > 5 || $text === '') { $message = 'Valid rating and review text required.'; } elseif (!seller_can_review_buyer($conn, $listingId, current_user_id(), $buyerId)) { $message = 'You can review only the winning buyer once per completed auction.'; } else { review_create($conn, $listingId, current_user_id(), $buyerId, $rating, $text); $message = 'Buyer review submitted.'; } } } $rows = review_received($conn, current_user_id()); $reviewableBuyers = seller_reviewable_buyers($conn, current_user_id()); render_view('seller/reviews', compact('rows', 'reviewableBuyers', 'message')); }
 function seller_relist(mysqli $conn): void { require_seller_verified(); redirect_to('index.php?page=create_listing&relist_id=' . (int)($_GET['id'] ?? 0)); }

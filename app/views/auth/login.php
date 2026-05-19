@@ -18,10 +18,10 @@
 
         <form method="post" action="index.php?page=login" class="form-card">
             <label>Email</label>
-            <input type="email" name="email" value="<?= e($old_email ?? '') ?>" required>
+            <input type="text" name="email" value="<?= e($old_email ?? '') ?>">
 
             <label>Password</label>
-            <input type="password" name="password" required>
+            <input type="password" name="password">
 
             <button type="submit">Login</button>
         </form>

@@ -7,7 +7,7 @@
 
     <form method="post">
         <label>Listing</label>
-        <select name="listing_id" required>
+        <select name="listing_id">
             <option value="">Select listing</option>
             <?php foreach ($listings as $listing): ?>
                 <option value="<?= $listing['id'] ?>" <?= $selectedListingId === (int)$listing['id'] ? 'selected' : '' ?>>
@@ -17,7 +17,7 @@
         </select>
 
         <label>Reason</label>
-        <select name="reason" required>
+        <select name="reason">
             <option value="">Select reason</option>
             <option value="Misleading description">Misleading description</option>
             <option value="Prohibited item">Prohibited item</option>
@@ -26,7 +26,7 @@
         </select>
 
         <label>Description</label>
-        <textarea name="description" minlength="10" required></textarea>
+        <textarea name="description"></textarea>
 
         <button>Submit Report</button>
     </form>
