@@ -42,6 +42,7 @@ CREATE TABLE listings (
     status ENUM('pending_review','active','ended','cancelled','rejected') DEFAULT 'pending_review',
     winner_bid_id INT NULL,
     rejection_reason TEXT,
+    suspension_reason TEXT,
     cancel_reason TEXT,
     is_featured TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -155,10 +156,24 @@ CREATE TABLE warnings (
     FOREIGN KEY (issued_by) REFERENCES users(id)
 ) ENGINE=InnoDB;
 
-
+CREATE TABLE auction_templates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    category_id INT NOT NULL,
+    `condition` ENUM('new','like_new','good','fair') NOT NULL DEFAULT 'good',
+    starting_price DECIMAL(10,2) NOT NULL,
     reserve_price DECIMAL(10,2) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (seller_id) REFERENCES users(id),
     FOREIGN KEY (category_id) REFERENCES categories(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE flagged_keywords (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    keyword VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 CREATE TABLE platform_fees (
