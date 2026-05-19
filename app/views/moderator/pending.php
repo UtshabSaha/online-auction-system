@@ -56,7 +56,7 @@
                     <input type="hidden" name="listing_id" value="<?= (int)$r['id'] ?>">
                     <input type="hidden" name="action" value="reject">
                     <label style="font-weight:600;display:block;margin-bottom:4px;">Rejection Reason (required — will be sent to seller):</label>
-                    <textarea name="rejection_reason" rows="3" placeholder="Explain why this listing is being rejected..." required style="resize:vertical;"></textarea>
+                    <textarea name="rejection_reason" rows="3" placeholder="Explain why this listing is being rejected..." style="resize:vertical;"></textarea>
                     <button class="danger" style="width:auto;padding:8px 20px;">Confirm Rejection</button>
                 </form>
             </div>

@@ -42,13 +42,13 @@
                 Recipient User ID
                 <span id="receiver_name_hint" style="font-weight:400;color:#2563eb;font-size:13px;margin-left:6px;"></span>
             </label>
-            <input type="number" name="receiver_id" id="receiver_id" placeholder="User ID" required min="1">
+            <input type="number" name="receiver_id" id="receiver_id" placeholder="User ID">
 
             <label style="font-weight:600;display:block;margin-bottom:2px;">Related Listing ID <span style="font-weight:400;color:#6b7280;">(optional)</span></label>
-            <input type="number" name="listing_id" placeholder="Listing ID (leave blank if not about a specific listing)" min="1">
+            <input type="number" name="listing_id" placeholder="Listing ID (leave blank if not about a specific listing)">
 
             <label style="font-weight:600;display:block;margin-bottom:2px;">Message</label>
-            <textarea name="message" rows="6" placeholder="Write your moderation message here. Be clear and professional." required style="resize:vertical;"></textarea>
+            <textarea name="message" rows="6" placeholder="Write your moderation message here. Be clear and professional." style="resize:vertical;"></textarea>
 
             <button style="width:auto;padding:10px 24px;margin-top:4px;">Send Message</button>
         </form>

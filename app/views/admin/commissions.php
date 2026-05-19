@@ -1,1 +1,1 @@
-<div class="card"><h1>Commission Settings</h1><?php if($message): ?><div class="alert"><?= e($message) ?></div><?php endif; ?><form method="post"><label>Default commission rate (%)</label><input type="number" step="0.01" name="rate" min="0" max="100" required><button>Save Rate</button></form></div>
+<div class="card"><h1>Commission Settings</h1><?php if($message): ?><div class="alert"><?= e($message) ?></div><?php endif; ?><form method="post"><label>Default commission rate (%)</label><input type="number" step="0.01" name="rate"><button>Save Rate</button></form></div>

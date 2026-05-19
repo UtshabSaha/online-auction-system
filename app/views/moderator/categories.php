@@ -10,7 +10,7 @@
     <form method="post" style="max-width:500px;">
         <input type="hidden" name="action" value="add">
         <label style="font-weight:600;display:block;margin-bottom:2px;">Name <span style="color:#ef4444;">*</span></label>
-        <input type="text" name="name" placeholder="Category name" required>
+        <input type="text" name="name" placeholder="Category name">
         <label style="font-weight:600;display:block;margin-bottom:2px;">Description</label>
         <input type="text" name="description" placeholder="Optional description">
         <label style="font-weight:600;display:block;margin-bottom:2px;">Parent Category <span style="font-weight:400;color:#6b7280;">(leave blank for top-level)</span></label>
@@ -39,7 +39,7 @@
             <?php endforeach; ?>
         </select>
         <label style="font-weight:600;display:block;margin-bottom:2px;">New Name <span style="color:#ef4444;">*</span></label>
-        <input type="text" name="name" id="rename-name" placeholder="New category name" required>
+        <input type="text" name="name" id="rename-name" placeholder="New category name">
         <label style="font-weight:600;display:block;margin-bottom:2px;">New Description</label>
         <input type="text" name="description" id="rename-desc" placeholder="New description">
         <button class="secondary" style="width:auto;padding:9px 24px;">Rename Category</button>
@@ -53,14 +53,14 @@
     <form method="post" style="max-width:500px;">
         <input type="hidden" name="action" value="merge">
         <label style="font-weight:600;display:block;margin-bottom:2px;">Source Category (will be deleted)</label>
-        <select name="source_id" required style="margin-bottom:10px;">
+        <select name="source_id" style="margin-bottom:10px;">
             <option value="">— Select source —</option>
             <?php foreach ($rows as $r): ?>
                 <option value="<?= (int)$r['id'] ?>"><?= e($r['name']) ?> [ID: <?= (int)$r['id'] ?>]</option>
             <?php endforeach; ?>
         </select>
         <label style="font-weight:600;display:block;margin-bottom:2px;">Destination Category (listings moved here)</label>
-        <select name="dest_id" required style="margin-bottom:12px;">
+        <select name="dest_id" style="margin-bottom:12px;">
             <option value="">— Select destination —</option>
             <?php foreach ($rows as $r): ?>
                 <option value="<?= (int)$r['id'] ?>"><?= e($r['name']) ?> [ID: <?= (int)$r['id'] ?>]</option>
@@ -77,7 +77,7 @@
     <form method="post" style="max-width:500px;">
         <input type="hidden" name="action" value="delete">
         <label style="font-weight:600;display:block;margin-bottom:2px;">Category to Delete</label>
-        <select name="id" required style="margin-bottom:12px;">
+        <select name="id" style="margin-bottom:12px;">
             <option value="">— Select category —</option>
             <?php foreach ($rows as $r): ?>
                 <option value="<?= (int)$r['id'] ?>"><?= e($r['name']) ?> [ID: <?= (int)$r['id'] ?>]</option>

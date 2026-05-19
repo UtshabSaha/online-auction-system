@@ -31,9 +31,9 @@
         <div style="flex:1;min-width:260px;">
             <form method="post">
                 <label style="font-weight:600;display:block;margin-bottom:4px;">User ID <span style="font-weight:400;color:#6b7280;">(from search results)</span></label>
-                <input type="number" name="user_id" placeholder="Enter User ID" required min="1" style="margin-bottom:10px;">
+                <input type="number" name="user_id" placeholder="Enter User ID" style="margin-bottom:10px;">
                 <label style="font-weight:600;display:block;margin-bottom:4px;">Warning Reason</label>
-                <textarea name="reason" rows="4" placeholder="Describe the policy violation and expected behaviour…" required style="resize:vertical;"></textarea>
+                <textarea name="reason" rows="4" placeholder="Describe the policy violation and expected behaviour…" style="resize:vertical;"></textarea>
                 <button class="danger" style="width:auto;padding:9px 24px;margin-top:4px;">Issue Warning</button>
             </form>
         </div>

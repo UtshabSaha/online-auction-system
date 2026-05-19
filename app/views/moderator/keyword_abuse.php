@@ -11,7 +11,7 @@
         <p style="color:#6b7280;font-size:13px;margin-top:0;">Listings containing these keywords in their title or description will appear below for review.</p>
         <form method="post" style="display:flex;gap:8px;margin-bottom:14px;">
             <input type="hidden" name="action" value="add_keyword">
-            <input type="text" name="keyword" placeholder="Enter keyword…" required style="flex:1;margin:0;">
+            <input type="text" name="keyword" placeholder="Enter keyword…" style="flex:1;margin:0;">
             <button style="width:auto;padding:10px 16px;margin:0;">Add</button>
         </form>
 

@@ -54,7 +54,7 @@
                     <form method="post">
                         <input type="hidden" name="listing_id" value="<?= (int)$r['id'] ?>">
                         <label style="font-weight:600;display:block;margin-bottom:4px;">Suspension Reason (required):</label>
-                        <textarea name="suspension_reason" rows="2" placeholder="Explain why this listing is being suspended…" required style="resize:vertical;margin-bottom:8px;"></textarea>
+                        <textarea name="suspension_reason" rows="2" placeholder="Explain why this listing is being suspended…" style="resize:vertical;margin-bottom:8px;"></textarea>
                         <div style="display:flex;gap:8px;">
                             <button class="danger" style="width:auto;padding:8px 18px;">Confirm Suspension</button>
                             <button type="button" class="secondary" style="width:auto;padding:8px 14px;"
