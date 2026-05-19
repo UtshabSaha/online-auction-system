@@ -293,4 +293,8 @@ function buyer_notifications(mysqli $conn, int $buyer): array {
     $won = db_rows($conn, "SELECT l.id, l.title, 'won' type, 'You won this auction.' message FROM listings l JOIN bids b ON b.id=l.winner_bid_id WHERE b.buyer_id=? AND l.status='ended'", 'i', [$buyer]);
     return array_merge($outbid, $endingSoon, $won);
 }
+
+function user_inbox(mysqli $conn, int $userId): array {
+    return db_rows($conn, 'SELECT m.*, u.name sender_name, u.role sender_role, l.title listing_title FROM messages m JOIN users u ON u.id=m.sender_id LEFT JOIN listings l ON l.id=m.listing_id WHERE m.receiver_id=? ORDER BY m.created_at DESC', 'i', [$userId]);
+}
 ?>

@@ -126,6 +126,12 @@ function buyer_auction(mysqli $conn): void {
     render_view('public/auction', compact('listing', 'images', 'bids'));
 }
 
+function user_messages(mysqli $conn): void {
+    require_login();
+    $rows = user_inbox($conn, current_user_id());
+    render_view('auth/messages', compact('rows'));
+}
+
 function buyer_dashboard(mysqli $conn): void {
     require_role('buyer');
     listing_close_expired_auctions($conn);

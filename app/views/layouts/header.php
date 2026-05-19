@@ -50,6 +50,7 @@
         <?php nav_link('my_bids', 'My Bids', $current_page); ?>
         <?php nav_link('won_auctions', 'Won Auctions', $current_page); ?>
         <?php nav_link('spending', 'Spending', $current_page); ?>
+        <?php nav_link('messages', 'Messages', $current_page); ?>
     <?php endif; ?>
     <?php if (current_role()==='seller'): ?>
         <?php nav_link('seller_dashboard', 'Seller Dashboard', $current_page); ?>
@@ -59,6 +60,7 @@
         <?php nav_link('seller_ended', 'Ended Auctions', $current_page); ?>
         <?php nav_link('seller_reviews', 'My Reviews', $current_page); ?>
         <?php nav_link('seller_analytics', 'Analytics', $current_page); ?>
+        <?php nav_link('messages', 'Messages', $current_page); ?>
     <?php endif; ?>
     <?php if (current_role()==='moderator'): ?>
         <?php nav_link('moderator_dashboard', 'Moderator Dashboard', $current_page); ?>

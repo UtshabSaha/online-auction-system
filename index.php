@@ -11,6 +11,7 @@ switch ($page) {
     case 'register': auth_register($conn); break;
     case 'logout': auth_logout(); break;
     case 'profile': auth_profile($conn); break;
+    case 'messages': user_messages($conn); break;
 
     case 'browse': buyer_browse($conn); break;
     case 'auction': buyer_auction($conn); break;
